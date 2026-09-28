@@ -23,7 +23,7 @@ say the task hasn't shipped and stop.
 |---|---|---|
 | `host` (default) | the git host: GitHub Actions / GitLab CI | `gh` or `glab` logged in to the host. Not possible with `git_host.type: other` or without the CLI: say so and stop |
 | `jenkins` | `scripts/ci.py --provider jenkins --url <ci.url>`, job resolved per CI unit (see below) | `JENKINS_USER`, `JENKINS_TOKEN` |
-| `custom` | `scripts/ci.py --provider custom` with `ci.commands.status/log/rerun` | whatever the team's script needs |
+| `custom` | `scripts/ci.py --provider custom` with `ci.commands.status/log/rerun`; without `commands` it is not connected yet: say so, offer to write the script from the CI's API documentation, and stop | whatever the team's script needs |
 | `none` | nothing to watch: say tests already ran locally in the task, and stop | |
 
 With `git_host.type: none` (local only) nothing was pushed, so there is no CI run; say so and stop.

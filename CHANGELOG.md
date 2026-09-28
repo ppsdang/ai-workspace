@@ -4,6 +4,29 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-28
+
+### Changed
+- **`/ai-workspace:init` asks its questions in one defined order**, each answer feeding the next: mode →
+  name → repositories → code hosting → tasks → pipelines → a plain-language summary (Save / Change
+  something / Show the file). Questions that need the cloned repositories (monorepo parts, base
+  branches, Jenkins job names) come after cloning.
+- **Repositories are pasted as links**, one or many, in any format; no names needed. They're parsed by a
+  new tested script (`scripts/parse_repos.py`: ssh, https, `ssh://`, local folders, links inside text,
+  name clashes) and shown back for confirmation. Later / folder on disk / demo are offered only when no
+  links are given.
+- Base branches are read from each clone instead of being assumed to be `main`.
+- Only questions that make sense are asked: the GitHub issues repository and label names, task-file
+  folder and statuses come from defaults or the links; Jira asks site, project and status names only.
+  Pipelines only offer choices that work with the chosen host.
+
+### Fixed
+- "Our own tool" (tracker) and "Something else" (CI) no longer block setup when no connector exists yet:
+  they're saved as *not connected*, tasks are described by hand meanwhile, and Claude offers to write the
+  connector from the tool's API documentation.
+- Validation problems no longer stop init; valid answers are saved and the rest is asked.
+- Choosing task files creates `backlog/` with an example task.
+
 ## [1.5.2] - 2026-09-28
 
 ### Changed

@@ -124,7 +124,11 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/tracker.py" --type markdown --root . --pa
 
 ## custom (in-house trackers)
 
-For any tracker without a built-in adapter. Two options:
+For any tracker without a built-in adapter. Two options below. **Not connected yet** (`type: custom`
+with neither `commands` nor `mcp_server`): treat the task like `none` (the user describes it, or pastes
+it), skip comments and status changes, and remind the user once that the connector is missing. If they
+share the tool's API documentation, offer to write the connector script (fetch / comment / transition,
+following the contract below) into their workspace, e.g. `tools/tracker`, and add its commands.
 
 **via: command.** The team provides small scripts (any language) that talk to their tracker's API:
 

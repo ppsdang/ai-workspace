@@ -99,7 +99,7 @@
         },
         "commands": {
           "type": "object",
-          "description": "custom via command: templates with {key} and {status}",
+          "description": "custom via command: templates with {key} and {status}. Without commands or mcp_server, a custom tracker is 'not connected yet' and tasks are described by hand",
           "properties": {
             "fetch": {
               "type": "string"
@@ -168,29 +168,6 @@
           "then": {
             "required": [
               "path"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "custom"
-              }
-            }
-          },
-          "then": {
-            "anyOf": [
-              {
-                "required": [
-                  "commands"
-                ]
-              },
-              {
-                "required": [
-                  "mcp_server"
-                ]
-              }
             ]
           }
         }
@@ -407,7 +384,7 @@
         "commands": {
           "type": "object",
           "additionalProperties": false,
-          "description": "custom: templates with {codebase} {branch} {sha} {build}",
+          "description": "custom: templates with {codebase} {branch} {sha} {build}. Without commands, custom CI is 'not connected yet'",
           "properties": {
             "status": {
               "type": "string"
@@ -442,23 +419,6 @@
           "then": {
             "required": [
               "url"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "provider": {
-                "const": "custom"
-              }
-            },
-            "required": [
-              "provider"
-            ]
-          },
-          "then": {
-            "required": [
-              "commands"
             ]
           }
         }
