@@ -1,151 +1,195 @@
 # ai-workspace
 
-**Take a ticket from your tracker to reviewed merge requests across all your repositories, with Claude
-Code, for any stack, and approve anything that leaves your machine.**
+A Claude Code plugin that works your tickets for you, across all your repositories, and asks before
+anything leaves your machine.
 
-ai-workspace is a Claude Code plugin. It turns a folder into an AI development workspace: your frontend,
-backend, mobile app and services side by side (or a single repo, or a monorepo), each keeping its own git
-history. Then it works tickets end to end:
+You give it a ticket (`/ai-workspace:task PAY-123`). It reads the ticket, figures out which repositories
+are affected, shows you a plan, writes the code and tests, has the work reviewed, and opens one merge
+request per repository. It stops for your approval before it starts coding and before it pushes.
 
-```
-ticket ─► impact analysis per repo ─► plan ─► implement ─► test ─► independent review ─► sync + secrets scan ─► MRs
-                                        ▲                                                                   ▲
-                                   you approve                                                        you approve
-                               (skipped for quick fixes)
-```
+Works with any language, Jira / GitHub Issues / Trello / markdown task files / your own tracker, and
+GitHub or GitLab.
 
-- **Any stack.** Each repository is analysed from its build files, CI and code. Guidance for Java,
-  Kotlin, TypeScript, Angular, React, Python, Go, PHP, Flutter and C# loads only for matching files.
-- **Any tracker.** Jira, GitHub Issues, Trello, plain markdown task files, in-house trackers (through
-  your own script or MCP server), or pasted text.
-- **GitHub and GitLab** (including self-hosted). One MR/PR per affected repository, cross-linked.
-- **After the MR:** fix CI failures caused by the change (with a hard cap), and triage and answer reviewer comments.
-- **Safe by default.** A guard hook denies force-pushes, protected-branch pushes and merges, and asks you
-  before every push, MR/PR and tracker update. Ticket text and repo files are treated as untrusted.
-- **Parallel tickets** with one git worktree per task, and **resumable** tasks with an audit trail.
+---
 
-## Try it in five minutes (no accounts needed)
+## 1. Install
 
-```bash
-git clone https://github.com/ppsdang/ai-workspace
-ai-workspace/examples/demo/setup.sh ~/ai-workspace-demo
-cd ~/ai-workspace-demo/shop-workspace
-claude --plugin-dir ~/ai-workspace        # adjust the path to where you cloned it
-```
+You need [Claude Code](https://claude.com/claude-code), `git`, `python3` (3.10 or newer) and the CLI for
+your git host: [`gh`](https://cli.github.com) for GitHub or [`glab`](https://gitlab.com/gitlab-org/cli)
+for GitLab, logged in (`gh auth login` / `glab auth login`).
 
-```text
-/ai-workspace:init
-/ai-workspace:task T-1
-```
-
-The demo has two tiny repositories with local folders as remotes and a markdown backlog. Details in
-[examples/demo](examples/demo/README.md).
-
-## Install
+In Claude Code:
 
 ```text
 /plugin marketplace add ppsdang/ai-workspace
 /plugin install ai-workspace@ai-workspace
 ```
 
-**Requirements:** `git`, `python3` 3.10+ (standard library only), and `gh` or `glab` for opening
-MRs/PRs. On Windows, use Git Bash (Windows support is not yet verified in CI).
+> The repository is private for now: you need read access to it on GitHub for this to work.
 
-Works well alongside [Superpowers](https://github.com/obra/superpowers): when it's installed, the task
-flow uses its TDD, debugging and verification skills.
+To update later: `/plugin marketplace update ai-workspace`.
 
-## Set up your own workspace
+## 2. Try it first (optional, 5 minutes)
+
+A demo with two tiny repositories and a task list, all on your machine (no accounts, nothing is sent anywhere):
 
 ```bash
-mkdir payroll-workspace && cd payroll-workspace && claude      # several repositories
-# or, inside an existing repository:  cd my-repo && claude       # single-repo mode
+git clone https://github.com/ppsdang/ai-workspace ~/ai-workspace
+~/ai-workspace/examples/demo/setup.sh ~/ai-workspace-demo
+cd ~/ai-workspace-demo/shop-workspace && claude
 ```
+
+Then type `/ai-workspace:init`, and after that `/ai-workspace:task T-1`. See [examples/demo](examples/demo/README.md).
+
+## 3. Set up your project
+
+Pick the case that matches you.
+
+**My project has several repositories** (frontend, backend, mobile, …): create an empty folder for the
+project and start Claude there:
+
+```bash
+mkdir ~/workspaces/payroll && cd ~/workspaces/payroll && claude
+```
+
+**My project is one repository:** start Claude inside it:
+
+```bash
+cd ~/code/my-app && claude
+```
+
+Then, in both cases:
 
 ```text
-/ai-workspace:init       # asks for your repos and tracker, writes workspace.yaml, clones, detects stacks
-/ai-workspace:doctor     # checks tools, logins, tracker credentials
+/ai-workspace:init
 ```
 
-Approve the prompts for writes under `.claude/` on the first run. Result (multi-repo):
+It asks you a few questions:
 
-```
-payroll-workspace/
-  workspace.yaml            ← the one file you edit       (reference: docs/configuration.md)
-  CLAUDE.md                 ← generated, short
-  .claude/settings.json     ← plugin enabled, read-only git pre-approved, destructive commands denied
-  .claude/rules/            ← generated, path-scoped per repository and language
-  context/codebases/*.md    ← generated profile per repository: stack, commands, layout, integrations
-  codebase/<name>/          ← your repositories (own git histories, gitignored here)
-  work/<KEY>/<name>/        ← per-task worktrees when worktrees: true
-  tasks/<KEY>/              ← requirement, analysis, plan, test results, review, state
-```
-
-## Commands
-
-| Command | What it does |
+| It asks | Example answer |
 |---|---|
-| `/ai-workspace:init [names…]` | Create or refresh the workspace: manifest, clones, stack detection, profiles, rules |
-| `/ai-workspace:task <KEY \| file.md \| "text">` | Work a ticket end to end; run it again with the same key to resume |
-| `/ai-workspace:ci <KEY>` | Watch the ticket's pipelines; fix failures caused by the change, at most `ci.max_rounds` times |
-| `/ai-workspace:respond <KEY>` | Triage unresolved review comments (fix / explain / ask), then fix and reply after one approval |
-| `/ai-workspace:status` | Branch, changes and sync state for every repository and task worktree |
-| `/ai-workspace:doctor` | Readiness check: tools, logins, tracker credentials, clones |
+| Name of the workspace | Payroll |
+| Where your tasks are | Jira, `https://acme.atlassian.net`, project `PAY` |
+| Status names to use | "In Progress" when work starts, "In Review" when MRs are open |
+| Git host | GitLab |
+| Your repositories (several-repo case) | `backend  git@gitlab.acme.com:payroll/backend.git`, `frontend  …` |
 
-## Workspace shapes
+It then downloads the repositories, works out each one's language, framework and test commands, and
+saves your answers in `workspace.yaml`. **Approve the prompts** it shows for writing files under
+`.claude/`; that's where its settings go.
 
-| Shape | In `workspace.yaml` | Notes |
-|---|---|---|
-| Several repositories | `codebases` with `url` | cloned into `codebase/<name>/` |
-| One existing repository | `mode: single` | nothing is committed to your repo: workspace files are excluded locally, your `CLAUDE.md` is left alone |
-| Monorepo | `components: [{name, dir}]` on a codebase | analysis, profiles, rules and tests per component; one branch and MR per repository |
-| Parallel tickets | `worktrees: true` | each task in `work/<KEY>/<name>`; your main clones stay on their base branch |
+Finally, check that everything is connected:
 
-## Trackers
-
-| `tracker.type` | Connects via | Credentials |
-|---|---|---|
-| `jira` | Atlassian MCP server, or REST API (Cloud and Server/DC) | REST: `JIRA_API_TOKEN` (+ `JIRA_EMAIL` on Cloud) |
-| `github` | `gh` | `gh auth login` |
-| `trello` | REST API | `TRELLO_API_KEY`, `TRELLO_TOKEN` |
-| `markdown` | files such as `backlog/task1.md` | none |
-| `custom` | your script (`fetch` / `comment` / `transition`) or an MCP server | whatever your tracker needs |
-| `none` | pasted text or a file path | none |
-
-Secrets are read from environment variables only, never from `workspace.yaml`. See
-[docs/configuration.md](docs/configuration.md).
-
-## Documentation
-
-- [How it works](docs/how-it-works.md): skills, agents, hooks, the ticket flow, safety layers
-- [Configuration reference](docs/configuration.md): every `workspace.yaml` key, with examples
-  (a [JSON Schema](schema/workspace.schema.json) gives editor completion)
-- [Trackers](skills/task/references/trackers.md) · [Shipping](skills/task/references/ship.md) · [Paths and worktrees](skills/task/references/layout.md)
-- [Security](SECURITY.md) · [Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md)
-
-## Security
-
-Human approval gates plus a guard hook on every shell command: destructive and protected-branch git
-operations and merges are denied; pushes, MRs/PRs and tracker updates need your confirmation. The hook is
-a safety net, not a sandbox, so keep server-side branch protection on. Threat model and private
-vulnerability reporting: [SECURITY.md](SECURITY.md).
-
-## Contributing
-
-Contributions are welcome, especially rule templates for more stacks and tracker adapters. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
-
-```bash
-python3 -m unittest discover tests      # 50+ tests, standard library only
-claude plugin validate .
-claude plugin eval . --allow-tools Bash Read --trust-plugin    # behaviour evals (uses your Claude quota)
+```text
+/ai-workspace:doctor
 ```
 
-## Acknowledgements
+It tells you what's missing, for example "`JIRA_API_TOKEN` not set" or "`glab` not logged in", and how
+to fix it (see [Connect your tracker](#5-connect-your-tracker)).
+
+## 4. Work a ticket
+
+```text
+/ai-workspace:task PAY-123
+```
+
+What happens, and what you do:
+
+1. **It reads the ticket** and restates it with numbered acceptance criteria. If something important is
+   unclear, it asks you.
+2. **It checks which repositories are affected** and what would need to change in each.
+3. **You approve the plan.** You see the files it will change, how each criterion will be tested, and
+   the risks. Answer *Approve*, *Change something* (say what), or *Stop*.
+   For a small, clear fix it skips this step and shows you the plan together with the finished change at step 6.
+4. **It writes the code and tests** on a new branch in each affected repository, following that
+   repository's existing style.
+5. **It tests and reviews.** It runs each repository's tests and has an independent reviewer check the
+   change against every acceptance criterion. Problems get fixed before you see anything. It also
+   updates the branch if the main branch has moved on, and scans for accidentally committed passwords
+   or keys.
+6. **You approve shipping.** You see the diff, test results and review. Choose *Ship it*, *Push and
+   open MRs only*, *Make changes*, or *Stop here* (everything stays local).
+7. **It ships:** pushes the branches, opens one MR/PR per repository with links between them,
+   comments on the ticket and moves it to "In Review". Claude Code asks you to confirm each push and
+   each MR as it happens.
+
+You can stop at any point and come back later: run the same command again and it continues where it
+left off. When you open Claude in the workspace, it reminds you of unfinished tickets.
+
+**No ticket?** Describe the work instead:
+
+```text
+/ai-workspace:task "Add rate limiting to the login endpoint"
+/ai-workspace:task backlog/task7.md
+```
+
+### After the merge request is open
+
+| Situation | Type |
+|---|---|
+| The pipeline failed | `/ai-workspace:ci PAY-123`: it reads the failure, fixes it if the change caused it (at most twice), and tells you otherwise |
+| Reviewers left comments | `/ai-workspace:respond PAY-123`: it proposes a fix, an explanation or a question for each comment, and after your OK fixes the code and replies |
+| You want an overview | `/ai-workspace:status`: branch and changes for every repository |
+
+## 5. Connect your tracker
+
+Set this during `/ai-workspace:init`, or edit `workspace.yaml` later. Tokens go in your shell profile
+(`~/.zshrc`, `~/.bashrc`), **never** in `workspace.yaml`.
+
+| Tracker | What to set up |
+|---|---|
+| **Jira** (Cloud or Server) | Either connect Atlassian's MCP server ([guide](https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/)), or create an [API token](https://id.atlassian.com/manage-profile/security/api-tokens) and add `export JIRA_API_TOKEN=…` and `export JIRA_EMAIL=you@company.com` |
+| **GitHub Issues** | nothing beyond `gh auth login` |
+| **Trello** | add `export TRELLO_API_KEY=…` and `export TRELLO_TOKEN=…` ([get them here](https://trello.com/power-ups/admin)) |
+| **Markdown files** | a folder of task files such as `backlog/task1.md` (title, description, `## Acceptance criteria` list) |
+| **Your company's own tracker** | a small script that can fetch a task, add a comment and change its status, or an MCP server for it; see [custom trackers](skills/task/references/trackers.md#custom-in-house-trackers) |
+| **None** | describe the work in the command, as above |
+
+## 6. Useful settings
+
+All in `workspace.yaml` ([full reference](docs/configuration.md)):
+
+| I want to… | Setting |
+|---|---|
+| work on several tickets at the same time (e.g. one per terminal) | `worktrees: true` |
+| always approve the plan, even for small fixes | `gates: { quick_fix: both }` |
+| stop being asked to confirm every push and MR | `guard: { confirm_outward: false }` (destructive commands stay blocked) |
+| open MRs as drafts | `git_host: { draft: true }` |
+| skip test-first for a repository without tests | `tdd: off` on that codebase |
+| treat parts of one big repository separately (monorepo) | `components:` on that codebase |
+| add a repository later | add it to `codebases:` and run `/ai-workspace:init` again |
+
+## 7. Questions
+
+**Is it safe to let it push?** It never pushes to protected branches (`main`, `master`, `develop`,
+`release/*` by default), never force-pushes and never merges, and it asks you before every push, MR
+and ticket update. Still keep branch protection switched on in GitHub/GitLab. More in [SECURITY.md](SECURITY.md).
+
+**Where does it keep its notes?** In `tasks/<ticket>/` inside the workspace: the requirement, analysis,
+plan, test results and review. Useful to see why it did something.
+
+**Does it change my repository's files that I didn't ask for?** In a single repository it adds nothing
+to what git tracks: its own files are excluded locally and your `CLAUDE.md` is left alone.
+
+**It keeps asking for permission.** Approve with "don't ask again" for read-only commands. Pushes, MRs
+and ticket updates always ask, on purpose.
+
+**A tool is missing or not logged in.** Run `/ai-workspace:doctor`.
+
+**I want to undo.** Until you approve shipping, everything is local: say *Stop here*, and delete the
+branch if you like. After shipping, close the MR as you normally would.
+
+**Can I use it with Superpowers?** Yes. If [Superpowers](https://github.com/obra/superpowers) is
+installed, the task flow uses its test-driven development and debugging skills.
+
+## More
+
+- [Configuration reference](docs/configuration.md): every setting, with examples
+- [How it works](docs/how-it-works.md): the moving parts, for the curious
+- [Security](SECURITY.md) · [Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md): development setup, tests, adding a language or tracker
 
 Inspired by [Superpowers](https://github.com/obra/superpowers),
 [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) and
-[workspaces](https://github.com/patricio0312rev/workspaces). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-## License
-
-[MIT](LICENSE)
+[workspaces](https://github.com/patricio0312rev/workspaces) ([notices](THIRD_PARTY_NOTICES.md)).
+Licensed under [MIT](LICENSE).
