@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """CI adapters for ai-workspace: pipeline status, failure logs and re-runs outside the git host.
 
-  ci.py --provider jenkins --url URL status  --job JOB --branch BRANCH [--sha SHA]
+  ci.py --provider jenkins --url URL status  --job JOB --branch BRANCH [--sha SHA] [--expect URL=SHA ...]
   ci.py --provider jenkins --url URL log     --build BUILD_URL [--tail 200]
   ci.py --provider jenkins --url URL rerun   --job JOB --branch BRANCH
+            [--param NAME=TEMPLATE ...] [--affected a,b] [--base CODEBASE=BRANCH ...]
   ci.py --provider custom --status-cmd "..." [--log-cmd "..."] [--rerun-cmd "..."] <op> ...
   ci.py job --clone-url URL --codebase NAME [--component NAME] [--ci-job JOB]
             [--pattern "{group}/{repo}"] [--component-pattern "{repo}/{component}"]
@@ -11,7 +12,14 @@
 job resolves which CI job to use: an explicit --ci-job wins, else the pattern is filled in from the
 clone URL ({group} = full namespace such as "payroll" or "acme/tools", {owner} = its first part,
 {repo} = repository name without .git, {codebase}, {component}). Components use --component-pattern,
-falling back to the codebase's job. Prints the job path, or exits 3 when none can be determined.
+falling back to the codebase's job. Prints the job path, or exits 3 when none can be determined and
+4 when the codebase has `ci_job: none` (it is only built by shared jobs).
+
+Shared jobs (one job checking out several repositories): pass one --expect per repository the task
+changed. A build matches only if it contains every expected commit (matched by repository URL when
+Jenkins records it); a newer build with only some of them means the combined build hasn't run yet.
+Rerun --param templates use {branch} (the task branch) and {branch:<codebase>} (the task branch if that
+codebase is in --affected, else its --base branch).
 
 status prints the same summary shape as review_threads.py checks:
   {"sha", "state": passed|failed|pending|none, "failed": [{name, id, url}], "pending": [...], "checks": [...]}
@@ -39,7 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tracker import TrackerError as CIError, http, need_env, split_command  # noqa: E402
 
 FAILED = {"FAILURE", "UNSTABLE", "ABORTED", "NOT_BUILT"}
-BUILD_TREE = "builds[number,url,result,building,actions[lastBuiltRevision[SHA1]]]{0,30}"
+BUILD_TREE = "builds[number,url,result,building,actions[lastBuiltRevision[SHA1],remoteUrls]]{0,30}"
 
 
 PLACEHOLDERS = ("group", "owner", "repo", "codebase", "component")
@@ -93,6 +101,45 @@ def resolve_job(clone_url, codebase, component=None, ci_job=None, pattern=None, 
     return None
 
 
+def repo_name(url: str) -> str:
+    try:
+        return parse_clone_url(url)[1]
+    except CIError:
+        return url
+
+
+def canonical_url(url: str) -> str:
+    """Comparable form of a git URL: ssh/https/scp-style, user, port and .git don't matter."""
+    u = url.strip().rstrip("/")
+    u = u[:-4] if u.endswith(".git") else u
+    if "://" in u:
+        parts = urllib.parse.urlsplit(u)
+        host, path = (parts.hostname or ""), parts.path
+    elif re.match(r"^([^/@:]+@)?[A-Za-z0-9.-]+:[^/]", u):
+        host, path = u.split("@", 1)[-1].split(":", 1)
+    else:
+        host, path = "", u
+    return f"{host.lower()}/{path.strip('/').lower()}"
+
+
+def resolve_params(templates: dict, branch: str, affected: set, bases: dict) -> dict:
+    out = {}
+    for name, tpl in templates.items():
+        def sub(m):
+            codebase = m.group(1)
+            if codebase is None:
+                return branch
+            if codebase not in bases and codebase not in affected:
+                raise CIError(f"parameter {name}: unknown codebase '{codebase}' (give --base {codebase}=<branch>)")
+            return branch if codebase in affected else bases[codebase]
+        value = re.sub(r"\{branch(?::([\w.-]+))?\}", sub, tpl)
+        leftover = re.findall(r"\{[^}]*\}", value)
+        if leftover:
+            raise CIError(f"parameter {name}: unknown placeholder(s) {', '.join(leftover)}")
+        out[name] = value
+    return out
+
+
 def summary(sha, checks):
     failed = [c for c in checks if c["state"] == "failed"]
     pending = [c["name"] for c in checks if c["state"] == "pending"]
@@ -139,30 +186,72 @@ class Jenkins:
         return jp, data.get("builds") or [], False
 
     @staticmethod
-    def build_sha(build):
+    def revisions(build):
+        """[(canonical remote URLs, sha)] for every repository the build checked out."""
+        out = []
         for action in build.get("actions") or []:
             sha = ((action or {}).get("lastBuiltRevision") or {}).get("SHA1")
             if sha:
-                return sha
-        return None
+                out.append(({canonical_url(u) for u in action.get("remoteUrls") or []}, sha))
+        return out
 
-    def status(self, job, branch, sha):
-        path, builds, multibranch = self._builds(job, branch)
-        build = None
-        if sha:
-            build = next((b for b in builds if (self.build_sha(b) or "").startswith(sha)), None)
-        if build is None and multibranch and builds and not sha:
-            build = builds[0]
-        if build is None:
-            return {**summary(sha, []), "note": f"no Jenkins build found yet for {branch}"
-                                                + (f" at {sha[:10]}" if sha else "")}
+    @classmethod
+    def build_sha(cls, build):
+        revs = cls.revisions(build)
+        return revs[0][1] if revs else None
+
+    @classmethod
+    def covers(cls, build, url, sha):
+        want = canonical_url(url) if url else None
+        return any(rev_sha.startswith(sha) and (not want or not urls or want in urls)
+                   for urls, rev_sha in cls.revisions(build))
+
+    def status_shared(self, job, branch, expect):
+        """Newest build containing every expected (url, sha); expect is non-empty."""
+        _, builds, _ = self._builds(job, branch)
+        for build in builds:
+            if all(self.covers(build, url, sha) for url, sha in expect):
+                return self._result(job, build, None, expect)
+        commits = [{"repo": repo_name(url), "url": url, "sha": sha[:10]} for url, sha in expect]
+        if builds:
+            newest = builds[0]
+            have = [f"{repo_name(url)}@{sha[:7]}" for url, sha in expect if self.covers(newest, url, sha)]
+            if newest.get("building"):
+                return {**summary(None, [{"name": f"{job} #{newest.get('number')}", "state": "pending",
+                                          "id": newest.get("url"), "url": newest.get("url")}]),
+                        "commits": commits,
+                        "note": "a build is running; its commits are not recorded yet" if not have else
+                                f"a build is running with {', '.join(have)} but not all of the task's commits"}
+            if have:
+                return {**summary(None, []), "commits": commits,
+                        "note": f"newest build #{newest.get('number')} has only {', '.join(have)}; "
+                                "the build with all of the task's commits hasn't run yet"}
+        return {**summary(None, []), "commits": commits,
+                "note": "no build of this job contains the task's commits yet"}
+
+    def _result(self, job, build, sha, expect=None):
         state = "pending" if build.get("building") else \
             "failed" if (build.get("result") or "") in FAILED else "passed"
         checks = [{"name": f"{job} #{build.get('number')}", "state": state, "id": build.get("url"),
                    "url": build.get("url"), "result": build.get("result")}]
         if state == "failed":
             checks[0]["failed_stages"] = self._failed_stages(build.get("url", ""))
-        return summary(sha or self.build_sha(build), checks)
+        result = summary(sha or (None if expect else self.build_sha(build)), checks)
+        if expect:
+            result["commits"] = [{"repo": repo_name(url), "url": url, "sha": s[:10]} for url, s in expect]
+        return result
+
+    def status(self, job, branch, sha):
+        path, builds, multibranch = self._builds(job, branch)
+        build = None
+        if sha:
+            build = next((b for b in builds if any(s.startswith(sha) for _, s in self.revisions(b))), None)
+        if build is None and multibranch and builds and not sha:
+            build = builds[0]
+        if build is None:
+            return {**summary(sha, []), "note": f"no Jenkins build found yet for {branch}"
+                                                + (f" at {sha[:10]}" if sha else "")}
+        return self._result(job, build, sha)
 
     def _failed_stages(self, build_url):
         try:  # Pipeline Stage View plugin; optional
@@ -183,8 +272,12 @@ class Jenkins:
             raise CIError(f"cannot read console log: {e}") from None
         return "\n".join(text.splitlines()[-tail:])
 
-    def rerun(self, job, branch):
+    def rerun(self, job, branch, params=None):
         path, _, _ = self._builds(job, branch)
+        if params:
+            query = urllib.parse.urlencode(params)
+            http("POST", f"{self.base}{path}/buildWithParameters?{query}", headers=self.headers)
+            return f"queued: {self.base}{path} with " + ", ".join(f"{k}={v}" for k, v in params.items())
         for endpoint in ("/build", "/buildWithParameters"):
             try:
                 http("POST", f"{self.base}{path}{endpoint}", headers=self.headers)
@@ -259,6 +352,9 @@ def main_job(argv) -> int:
     if not job:
         print("error: no ci_job and no job pattern; add ci_job or ci.job_pattern to workspace.yaml", file=sys.stderr)
         return 3
+    if job == "none":
+        print("none: this codebase has no job of its own (only shared jobs build it)")
+        return 4
     print(job)
     return 0
 
@@ -281,6 +377,12 @@ def main(argv=None) -> int:
         s.add_argument("--branch", required=True)
         if op == "status":
             s.add_argument("--sha", default="")
+            s.add_argument("--expect", action="append", default=[], metavar="URL=SHA",
+                           help="shared job: a repository and the commit the build must contain (repeat)")
+        else:
+            s.add_argument("--param", action="append", default=[], metavar="NAME=TEMPLATE")
+            s.add_argument("--affected", default="", help="codebases the task changed, comma-separated")
+            s.add_argument("--base", action="append", default=[], metavar="CODEBASE=BRANCH")
     lg = sub.add_parser("log")
     lg.add_argument("--build", required=True, help="jenkins build URL, or the id your custom command expects")
     lg.add_argument("--tail", type=int, default=200)
@@ -291,11 +393,21 @@ def main(argv=None) -> int:
             if a.op in ("status", "rerun") and not a.job:
                 raise CIError("jenkins needs --job (ci_job of the codebase)")
             if a.op == "status":
-                print(json.dumps(ci.status(a.job, a.branch, a.sha), indent=2))
+                if a.expect:
+                    expect = [tuple(pair.rsplit("=", 1)) for pair in a.expect]
+                    if any(len(e) != 2 or not e[1] for e in expect):
+                        raise CIError("--expect takes URL=SHA")
+                    print(json.dumps(ci.status_shared(a.job, a.branch, expect), indent=2))
+                else:
+                    print(json.dumps(ci.status(a.job, a.branch, a.sha), indent=2))
             elif a.op == "log":
                 print(ci.log(a.build, a.tail))
             else:
-                print(ci.rerun(a.job, a.branch))
+                templates = dict(pair.split("=", 1) for pair in a.param if "=" in pair)
+                bases = dict(pair.split("=", 1) for pair in a.base if "=" in pair)
+                affected = {c for c in a.affected.split(",") if c}
+                params = resolve_params(templates, a.branch, affected, bases) if templates else None
+                print(ci.rerun(a.job, a.branch, params))
         else:
             ci = Custom(a)
             if a.op == "status":

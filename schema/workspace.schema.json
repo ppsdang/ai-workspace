@@ -277,7 +277,7 @@
           },
           "ci_job": {
             "type": "string",
-            "description": "jenkins: job path, e.g. payroll/backend"
+            "description": "jenkins: job path, e.g. payroll/backend; \"none\" = no job of its own (only shared jobs build it)"
           }
         },
         "additionalProperties": false,
@@ -356,6 +356,39 @@
         "component_job_pattern": {
           "type": "string",
           "description": "jenkins: job path pattern for monorepo components, e.g. {repo}/{component}. Adds {component}."
+        },
+        "shared_jobs": {
+          "type": "array",
+          "description": "jenkins: jobs that check out several repositories (integration, end-to-end)",
+          "items": {
+            "type": "object",
+            "required": [
+              "job",
+              "codebases"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "job": {
+                "type": "string",
+                "description": "job path, e.g. payroll/integration"
+              },
+              "codebases": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                },
+                "description": "codebases this job checks out"
+              },
+              "parameters": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "for re-runs: parameter templates; {branch} = task branch, {branch:<codebase>} = task branch if that codebase changed, else its base branch"
+              }
+            }
+          }
         },
         "commands": {
           "type": "object",

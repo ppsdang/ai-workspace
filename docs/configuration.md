@@ -60,6 +60,7 @@ comments[]`) or plain markdown. See [trackers.md](../skills/task/references/trac
 | `url` | URL | | Jenkins server, e.g. `https://jenkins.example.com`. Credentials: `JENKINS_USER` and `JENKINS_TOKEN` (a Jenkins API token) in your shell profile |
 | `job_pattern` | string | | Jenkins job path for every codebase, built from its clone URL, e.g. `{group}/{repo}`. Placeholders: `{group}` (full namespace, e.g. `payroll` or `acme/tools`), `{owner}` (its first part), `{repo}`, `{codebase}` |
 | `component_job_pattern` | string | | The same for monorepo components, with `{component}` added, e.g. `{repo}/{component}` |
+| `shared_jobs` | list | | Jenkins jobs that check out several repositories: `[{job, codebases, parameters}]`; see below |
 | `commands.status` / `.log` / `.rerun` | command templates | | `custom`: `{codebase}`, `{branch}`, `{sha}`, `{build}` are filled in. `status` prints `passed`, `failed` or `pending` (or summary JSON); `log` prints the build log |
 | `max_rounds` | int | `2` | CI-fix pushes per task before `/ai-workspace:ci` hands over to a human |
 
@@ -72,13 +73,41 @@ only the jobs of the components the task changed, and falls back to the codebase
 without one. Multibranch pipelines and single jobs are both supported: builds are matched to the branch
 and commit.
 
+### Shared jobs
+
+Integration and end-to-end pipelines often check out several repositories in one job. List them once:
+
+```yaml
+ci:
+  provider: jenkins
+  url: https://jenkins.example.com
+  job_pattern: "{group}/{repo}"          # each repository's own job, as before
+  shared_jobs:
+    - job: payroll/integration
+      codebases: [backend, frontend]
+      parameters:                        # optional: branch parameters the job is started with
+        BACKEND_BRANCH: "{branch:backend}"
+        FRONTEND_BRANCH: "{branch:frontend}"
+```
+
+- `/ai-workspace:ci` checks a shared job whenever the task changed one of its codebases, in addition to
+  the repositories' own jobs.
+- A build only counts if it contains **every** commit the task produced in those repositories, matched
+  by repository URL. A newer build that has only some of them (for example, triggered by the first push)
+  is reported as "the combined build hasn't run yet".
+- Re-runs fill in the parameters: `{branch}` is the task branch; `{branch:<codebase>}` is the task branch
+  if that codebase changed, otherwise its base branch.
+- Failures are attributed to a repository from the failed stage and the log; only codebases the task
+  changed are fixed.
+- A codebase with no job of its own (built only by shared jobs) gets `ci_job: none`.
+
 ## `codebases[]`
 
 | Key | Meaning |
 |---|---|
 | `name` | Folder name under `codebase/` and the name used everywhere (letters, digits, `.`, `_`, `-`) |
 | `url` | Clone URL, or a local folder to copy from (multi mode) |
-| `ci_job` | Jenkins job path for this codebase, when it doesn't follow `ci.job_pattern` |
+| `ci_job` | Jenkins job path for this codebase, when it doesn't follow `ci.job_pattern`; `none` if only shared jobs build it |
 | `path` | Single mode only: `"."` (the repository itself) |
 | `branch` | Base branch for this codebase |
 | `tdd` | `strict` \| `when-tests-exist` (default) \| `off` |

@@ -4,6 +4,21 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-28
+
+### Added
+- Jenkins **shared jobs** (`ci.shared_jobs`): pipelines that check out several repositories, such as
+  integration or end-to-end jobs. `/ai-workspace:ci` checks them whenever the task changed one of their
+  repositories, counts only a build that contains every commit of the task (matched by repository URL,
+  so the same commit id in another repo doesn't count), reports "combined build hasn't run yet" for
+  builds with only some commits, re-runs with branch parameters (`{branch}`, `{branch:<codebase>}`),
+  and fixes only the repositories the task changed.
+- `ci_job: none` for repositories that are built only by shared jobs.
+
+### Fixed
+- Jenkins builds that check out several repositories are matched on every recorded checkout, not
+  only the first.
+
 ## [1.3.0] - 2026-09-28
 
 ### Added

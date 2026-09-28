@@ -60,12 +60,17 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   2. Resolve every codebase and component with `ci.py job` (see the ci skill) and show the resulting
      list: "backend → payroll/backend, frontend → payroll/frontend, …". Ask which ones are wrong.
   3. Record `ci_job:` only for those exceptions (on the codebase or component). If names follow no
-     pattern at all, fall back to one `ci_job` per codebase; **Other** (TeamCity, Bamboo,
+     pattern at all, fall back to one `ci_job` per codebase.
+  4. Ask whether any job **builds several repositories together** (integration or end-to-end
+     pipelines). For each, record `ci.shared_jobs[]`: `job`, the `codebases` it checks out, and, if it
+     is started with branch parameters, `parameters` (e.g. `BACKEND_BRANCH: "{branch:backend}"`). Use
+     `ci_job: none` for codebases that have no job of their own and are built only by a shared job; **Other** (TeamCity, Bamboo,
   Azure Pipelines, …) → `custom`, explain that a small script supplies `ci.commands.status/log/rerun`
   (see `${CLAUDE_PLUGIN_ROOT}/docs/configuration.md`); **None** → `none`.
 - Validate: `version: 1`; `mode` is multi or single (single: exactly one codebase with `path: "."`, no
   `url` needed); codebase and component names unique and matching `^[A-Za-z0-9._-]+$`; in multi mode every
-  codebase has a `url`; component `dir`s exist after cloning and stay inside the repository.
+  codebase has a `url`; component `dir`s exist after cloning and stay inside the repository; every name
+  in `ci.shared_jobs[].codebases` is a codebase.
   `tracker.type` is one of jira, github, trello, markdown, custom, none, and has its required fields
   (jira: base_url; github: repo; markdown: path; custom: commands or mcp_server).
   Stop and report problems instead of guessing.

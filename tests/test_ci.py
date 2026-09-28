@@ -110,6 +110,86 @@ class JenkinsTest(unittest.TestCase):
         self.assertIn("JENKINS_USER", r.stderr)
 
 
+BACKEND = "git@gitlab.example.com:payroll/backend.git"
+FRONTEND = "git@gitlab.example.com:payroll/frontend.git"
+
+
+def shared_build(number, revs, result=None, building=False):
+    """A build of a job that checks out several repositories: revs = [(clone_url, sha), ...]."""
+    return {"number": number, "url": f"http://j/job/payroll/job/integration/{number}/", "result": result,
+            "building": building,
+            "actions": [{"lastBuiltRevision": {"SHA1": sha}, "remoteUrls": [url]} for url, sha in revs]}
+
+
+class SharedJobTest(JenkinsTest):
+    JOB = "/job/payroll/job/integration/api/json"
+
+    def status(self, *expect):
+        args = ["status", "--job", "payroll/integration", "--branch", "feature/T-5"]
+        for url, sha in expect:
+            args += ["--expect", f"{url}={sha}"]
+        r = self.ci(*args)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return json.loads(r.stdout)
+
+    def test_build_must_contain_every_commit(self):
+        MockJenkins.routes[("GET", self.JOB)] = {"builds": [
+            shared_build(20, [(BACKEND, "bbb222"), (FRONTEND, "fff111")], result="SUCCESS"),
+            shared_build(19, [(BACKEND, "bbb111"), (FRONTEND, "fff111")], result="SUCCESS")]}
+        out = self.status((BACKEND, "bbb222"), (FRONTEND, "fff222"))
+        self.assertEqual(out["state"], "none")
+        self.assertIn("has only backend@bbb222", out["note"])
+
+        MockJenkins.routes[("GET", self.JOB)]["builds"].insert(
+            0, shared_build(21, [(BACKEND, "bbb222"), (FRONTEND, "fff222")], result="FAILURE"))
+        out = self.status((BACKEND, "bbb222"), (FRONTEND, "fff222"))
+        self.assertEqual(out["state"], "failed")
+        self.assertEqual(out["failed"][0]["name"], "payroll/integration #21")
+        self.assertEqual(len(out["commits"]), 2)
+
+    def test_only_changed_repositories_are_expected(self):
+        MockJenkins.routes[("GET", self.JOB)] = {"builds": [
+            shared_build(8, [(BACKEND, "bbb222"), (FRONTEND, "fff000")], result="SUCCESS")]}
+        self.assertEqual(self.status((BACKEND, "bbb222"))["state"], "passed")
+
+    def test_running_build_without_recorded_commits_is_pending(self):
+        MockJenkins.routes[("GET", self.JOB)] = {"builds": [shared_build(9, [], building=True)]}
+        out = self.status((BACKEND, "bbb222"))
+        self.assertEqual(out["state"], "pending")
+        self.assertIn("not recorded yet", out["note"])
+
+    def test_commit_is_matched_to_the_right_repository(self):
+        # same commit id recorded for another repository must not count
+        MockJenkins.routes[("GET", self.JOB)] = {"builds": [
+            shared_build(3, [(FRONTEND, "abc123")], result="SUCCESS")]}
+        self.assertEqual(self.status((BACKEND, "abc123"))["state"], "none")
+        # URL forms differ but name the same repository
+        MockJenkins.routes[("GET", self.JOB)] = {"builds": [
+            shared_build(4, [("https://gitlab.example.com/payroll/backend", "abc123")], result="SUCCESS")]}
+        self.assertEqual(self.status((BACKEND, "abc123"))["state"], "passed")
+
+    def test_rerun_with_branch_parameters(self):
+        MockJenkins.routes[("GET", self.JOB)] = {"builds": []}
+        MockJenkins.routes[("POST", "/job/payroll/job/integration/buildWithParameters")] = ""
+        r = self.ci("rerun", "--job", "payroll/integration", "--branch", "feature/T-5",
+                    "--param", "BACKEND_BRANCH={branch:backend}", "--param", "FRONTEND_BRANCH={branch:frontend}",
+                    "--param", "LABEL=ai-{branch}", "--affected", "backend",
+                    "--base", "backend=main", "--base", "frontend=develop")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        post = [p for m, p, _ in MockJenkins.calls if m == "POST"][0]
+        self.assertIn("BACKEND_BRANCH=feature%2FT-5", post)
+        self.assertIn("FRONTEND_BRANCH=develop", post)
+        self.assertIn("LABEL=ai-feature%2FT-5", post)
+
+    def test_rerun_rejects_unknown_codebase_or_placeholder(self):
+        MockJenkins.routes[("GET", self.JOB)] = {"builds": []}
+        r = self.ci("rerun", "--job", "payroll/integration", "--branch", "x", "--param", "A={branch:mobile}")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("unknown codebase 'mobile'", r.stderr)
+        r = self.ci("rerun", "--job", "payroll/integration", "--branch", "x", "--param", "A={sha}")
+        self.assertIn("unknown placeholder", r.stderr)
+
+
 class JobPatternTest(unittest.TestCase):
     def job(self, *args):
         return subprocess.run([sys.executable, str(CI), "job", *args], capture_output=True, text=True)
@@ -142,6 +222,9 @@ class JobPatternTest(unittest.TestCase):
         self.assertIn("unknown placeholder", r.stderr)
         r = self.job("--clone-url", "git@h:a/b.git", "--codebase", "b", "--pattern", "{repo}/{component}")
         self.assertEqual(r.returncode, 1)
+        # ci_job: none = only built by shared jobs, even when a pattern exists
+        r = self.job(*base, "--ci-job", "none")
+        self.assertEqual(r.returncode, 4)
 
 
 class CustomCITest(unittest.TestCase):

@@ -72,6 +72,12 @@ ci:
   # url: https://jenkins.example.com                 # jenkins; credentials: JENKINS_USER, JENKINS_TOKEN
   # job_pattern: "{group}/{repo}"                    # jenkins job per repository, from the clone URL
   # component_job_pattern: "{repo}/{component}"      # monorepos with a job per component
+  # shared_jobs:                                     # jobs that build several repositories together
+  #   - job: shop/integration
+  #     codebases: [frontend, backend]
+  #     parameters:                                  # optional, used for re-runs
+  #       FRONTEND_BRANCH: "{branch:frontend}"       # task branch if frontend changed, else its base
+  #       BACKEND_BRANCH: "{branch:backend}"
   # commands:                                        # custom: your own script
   #   status: "./tools/ci status {codebase} {branch} {sha}"
   #   log: "./tools/ci log {build}"

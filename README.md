@@ -165,7 +165,7 @@ All in `workspace.yaml` ([full reference](docs/configuration.md)):
 |---|---|
 | work on several tickets at the same time (e.g. one per terminal) | `worktrees: true` |
 | keep everything on my machine, never push | `git_host: { type: none }` |
-| use our Jenkins for `/ai-workspace:ci` | `ci: { provider: jenkins, url: https://jenkins.yourcompany.com, job_pattern: "{group}/{repo}" }`; `ci_job:` only for repos that don't follow the pattern |
+| use our Jenkins for `/ai-workspace:ci` | `ci: { provider: jenkins, url: https://jenkins.yourcompany.com, job_pattern: "{group}/{repo}" }`; `ci_job:` only for repos that don't follow the pattern; `shared_jobs:` for pipelines that build several repos together |
 | always approve the plan, even for small fixes | `gates: { quick_fix: both }` |
 | stop being asked to confirm every push and MR | `guard: { confirm_outward: false }` (destructive commands stay blocked) |
 | open MRs as drafts | `git_host: { draft: true }` |
