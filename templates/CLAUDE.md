@@ -12,6 +12,13 @@ Each codebase is its own git repository at the path in the table{{WORKTREE_NOTE}
 shell into a codebase; use `git -C <path> ...`. Profiles with build/test/lint commands are in
 `context/codebases/` — read the relevant profile before building or testing.
 
+## Knowledge
+
+`context/INDEX.md` lists what is known about the product: overview, architecture, features, decisions and
+lessons from earlier tasks. Before analysing or changing something, search it:
+`python3 <plugin>/scripts/kb.py search "<words>"`, then read only the documents you need. The code wins
+when a document disagrees; note the mismatch so it can be fixed.
+
 ## Working rules
 
 1. Understand the task and inspect the code before changing anything.
@@ -27,5 +34,7 @@ shell into a codebase; use `git -C <path> ...`. Profiles with build/test/lint co
 - `/ai-workspace:task <KEY>` — work a ticket end to end
 - `/ai-workspace:status` — git status across codebases
 - `/ai-workspace:ci <KEY>` / `/ai-workspace:respond <KEY>` — follow up on a ticket's MRs
+- `/ai-workspace:ask "<question>"` — answer a question about the product with references
+- `/ai-workspace:learn <feature>` / `/ai-workspace:refresh` — document a feature; update stale documents
 - `/ai-workspace:doctor` — check tools, logins and clones
 - `/ai-workspace:init` — re-run detection after adding a codebase or when profiles are stale

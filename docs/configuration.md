@@ -13,6 +13,7 @@ Secrets never go in this file. Trackers read tokens from environment variables (
 |---|---|---|---|
 | `version` | `1` | required | Manifest format version |
 | `mode` | `multi` \| `single` | `multi` | `multi`: codebases are cloned into `codebase/<name>`. `single`: the repository you're in is the only codebase |
+| `knowledge.depth` | `quick` \| `deep` | `quick` | At setup, write the product overview and architecture only (`quick`; feature documents come on demand or with the first ticket that touches a feature), or also every feature document (`deep`) |
 | `worktrees` | bool | `false` | Give each task its own checkout under `work/<KEY>/<name>` (or `.ai-work/<KEY>` in single mode) so tasks can run in parallel |
 | `workspace.name` | string | | Display name |
 | `tracker` | object | | Where tasks come from; see below |

@@ -18,7 +18,8 @@
       "Bash(git -C * show*)",
       "Bash(git -C * fetch*)",
       "Bash(git -C * rev-parse*)",
-      "Bash(git -C * branch --show-current)"
+      "Bash(git -C * branch --show-current)",
+      "Bash(python3 *kb.py*)"
     ],
     "deny": [
       "Bash(git push --force*)",

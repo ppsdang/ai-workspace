@@ -4,6 +4,26 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-28
+
+### Added
+- **Workspace knowledge base** in `context/`: what the workspace learns about the product, as short
+  markdown documents committed with the workspace and shared by the team.
+  - `init` asks for a product brief in your own words (plus existing docs) and, after cloning, studies the
+    application: `product/overview.md` (features, users, flows, glossary) and `architecture/system.md`
+    (how the repositories connect: calls matched to endpoints, data, external services).
+    `knowledge.depth: deep` also writes every feature document at setup.
+  - Feature documents are written on demand (`/ai-workspace:learn <feature>`) or automatically the first
+    time a ticket changes the feature. Tickets also record decisions and learnings.
+  - Every ticket starts by searching the knowledge base and hands the relevant documents to the
+    analysts, who check them against the code and report mismatches.
+  - `/ai-workspace:ask "<question>"` answers product questions with document and file references.
+  - `/ai-workspace:refresh` updates only the documents whose source files changed since they were
+    written, and folds merged tickets into feature documents.
+  - `scripts/kb.py`: local search index (SQLite FTS5 with a pure-Python fallback; no dependencies,
+    nothing leaves the machine), `INDEX.md` generation, staleness detection per source path, and size
+    checks. `doctor` reports document count, stale documents and undocumented features.
+
 ## [1.6.1] - 2026-09-28
 
 ### Fixed

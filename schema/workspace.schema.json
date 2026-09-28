@@ -25,6 +25,20 @@
       "default": false,
       "description": "Give each task its own checkout under work/<KEY>/<name> so tasks can run in parallel."
     },
+    "knowledge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "depth": {
+          "enum": [
+            "quick",
+            "deep"
+          ],
+          "default": "quick",
+          "description": "quick: overview and architecture at setup, feature documents on demand; deep: all feature documents at setup"
+        }
+      }
+    },
     "tools": {
       "type": "array",
       "items": {

@@ -8,6 +8,7 @@
 | `task` | skill | the ticket flow below; the main session orchestrates and implements |
 | `ci`, `respond` | skills | after the MR: fix CI failures caused by the change (capped); triage and answer review comments |
 | `status`, `doctor` | skills | cross-repo git status; readiness checks |
+| `ask`, `learn`, `refresh` | skills | answer product questions with references; document a feature; update stale documents |
 | `impact-analyst` | agent | read-only (no shell), one per unit in parallel: affected files, contracts, tests, risks |
 | `test-runner` | agent | runs a unit's checks and returns only pass/fail and the essential failures |
 | `reviewer` | agent | fresh context: every acceptance criterion → code → test evidence, then correctness and security |
@@ -39,6 +40,34 @@ afterwards: /ai-workspace:ci KEY · /ai-workspace:respond KEY · cleanup of work
 
 Every phase writes its artifact under `tasks/<KEY>/` and updates `state.md`, so a task can resume in a
 new session (the SessionStart hook reminds you of unfinished tasks) and leaves an audit trail.
+
+## Knowledge base
+
+The workspace keeps what it learns in `context/` as markdown documents with a small frontmatter
+(`title`, `kind`, `summary`, `tags`, `codebases`, `sources`, `generated_from`):
+
+| Kind | File | Written by |
+|---|---|---|
+| brief | `product/brief.md` | the user, at setup |
+| overview | `product/overview.md` | init (quick pass) |
+| architecture | `architecture/system.md` | init (quick pass): calls matched to endpoints across repositories |
+| feature | `product/features/<slug>.md` | `/ai-workspace:learn`, or the task flow the first time a ticket changes the feature |
+| codebase | `codebases/<name>.md` | init |
+| decision, learning | `decisions/`, `learnings/` | the task flow, after shipping |
+
+`scripts/kb.py` keeps it usable:
+
+- **index / search**: a local SQLite FTS5 index (BM25; titles and headings weighted; a pure-Python scorer
+  where FTS5 is missing), rebuilt incrementally from the markdown, which stays the source of truth. The
+  index file `context/.kb.sqlite` is a cache and isn't committed.
+- **index-md**: `context/INDEX.md`, one line per document, the only part loaded into every session.
+- **stale**: compares each document's `generated_from` commits with the current code, limited to its
+  `sources` paths, so `/ai-workspace:refresh` updates only what changed.
+- **check**: frontmatter and size budgets (e.g. 150 lines per feature), so documents stay cheap to read.
+
+In a task, phase 1 searches the knowledge base with the ticket's terms and passes the relevant documents
+(as paths) to the impact analysts, who verify them against the code and report mismatches. Phase 11 adds
+what the task established: feature documents, pending changes, decisions and learnings.
 
 ## Sources of truth
 

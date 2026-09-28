@@ -2,7 +2,7 @@
 name: init
 description: Set up or refresh an ai-workspace — a multi-repo workspace, a single existing repository, or a monorepo with components. Creates workspace.yaml if missing, clones codebases, detects each stack, and generates profiles, path-scoped rules and workspace instructions. Use when the user wants to initialise a workspace, add a codebase, or refresh stale profiles.
 argument-hint: "[codebase-name ...]"
-allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(python3 *parse_repos.py*), Bash(bash *clone-repo.sh*), Bash(python3 *ci.py* job *), Bash(bash *exclude-local.sh*), Bash(git -C * rev-parse *), Bash(git init), Bash(gh auth status*), Bash(glab auth status*), Bash(command -v *), Bash(mkdir -p *), Bash(date *), Bash(ls *)
+allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(python3 *parse_repos.py*), Bash(python3 *kb.py*), Bash(bash *clone-repo.sh*), Bash(python3 *ci.py* job *), Bash(bash *exclude-local.sh*), Bash(git -C * rev-parse *), Bash(git init), Bash(gh auth status*), Bash(glab auth status*), Bash(command -v *), Bash(mkdir -p *), Bash(date *), Bash(ls *)
 ---
 
 # ai-workspace init
@@ -115,6 +115,17 @@ repositories and any monorepo parts are known. **Something else** (TeamCity, Bam
 commands) / **Not yet** (save `provider: custom` without commands = not connected; `/ai-workspace:ci`
 explains this until it exists). **None** → `none`.
 
+### Q6b. The product, in your words — plain text, optional
+*"In a few sentences: what does this product do, who uses it, and what are the main things they do
+with it? If there is documentation (README, product spec, Confluence export), give its path or link.
+You can also skip this."*
+
+This steers how the application is studied after cloning. Save it (and the doc links) to
+`context/product/brief.md` from `templates/knowledge/brief.md`; the brief is the user's own file (no
+generated marker), so later runs never overwrite it. Read any local documents given; for links, note
+them in the brief (read them only if a connected tool can, e.g. Confluence through the Atlassian MCP
+server). Skipped: write the brief with "Not written yet" and learn from the code alone.
+
 ### Q7. Confirm and save
 Summarise in plain words, not YAML, e.g. *"Workspace payroll: 3 repositories on
 gitlab.example.com (backend, frontend, mobile), tasks in Jira project PAY, pipelines on Jenkins, MRs
@@ -170,8 +181,12 @@ first propose components to the user. Give each subagent this brief with `<path>
 > build files, package scripts, Makefile/Taskfile, CI config (`.gitlab-ci.yml`, `.github/workflows`,
 > `Jenkinsfile`), Dockerfile and README; entry points; where tests live; integrations with other services
 > (HTTP clients, API base URLs, queues, DBs) with file paths; conventions visible in code (layering,
-> naming, DI, state management, error handling). Mark anything not confirmed from files as `(unverified)`.
-> Return a concise structured report; under 400 words.
+> naming, DI, state management, error handling). Also, for the knowledge base: the **features or
+> modules** this part implements (name, one line, main folder); the **API endpoints it exposes**
+> (method, path, purpose) and **the ones it calls** in other services; its **data stores** and main
+> tables; **external services**; user roles if visible. Use the product brief (`context/product/brief.md`)
+> to recognise features by their business names. Mark anything not confirmed from files as `(unverified)`.
+> Return a concise structured report; under 600 words.
 
 ## 3b. Questions that need the repositories
 
@@ -199,12 +214,37 @@ Ask these only now, when the repositories are cloned and analysed. Save each ans
 
 ## 4. Profiles
 
-For each unit write a profile from `templates/profile.md`, filling it from the subagent report:
+For each unit write a profile from `templates/profile.md` (its frontmatter makes it part of the
+knowledge base), filling it from the subagent report:
 `context/codebases/<name>.md` for a codebase, `context/codebases/<codebase>--<component>.md` for a component.
 `{{PATH}}` is the unit's path from the workspace root (`codebase/api`, `.`, `codebase/platform/apps/web`);
-commands are written as `cd {{PATH}} && ...`. `generated_from` = `git -C <clone> rev-parse --short HEAD`;
-`generated_at` = today.
+commands are written as `cd {{PATH}} && ...`. `{{COMMIT_SHA}}` = `git -C <clone> rev-parse --short HEAD`;
+`{{DATE}}` = today; `{{SUMMARY}}` = one line (stack and role); `{{SOURCE}}` = `<codebase>:<dir or .>`.
 Put the marker line right after the frontmatter. Keep each profile under ~80 lines.
+
+## 4b. Knowledge base (quick pass)
+
+The workspace keeps what it learns about the product in `context/` so later tasks start from it (see
+`${CLAUDE_PLUGIN_ROOT}/docs/how-it-works.md`, knowledge base). From the brief and the subagent reports,
+write, removing the templates' guidance comments:
+
+1. `context/architecture/system.md` from `templates/knowledge/system.md`: the parts and how they talk.
+   Match the endpoints each part *calls* to the endpoints another part *exposes*; list unmatched ones.
+2. `context/product/overview.md` from `templates/knowledge/overview.md`: what the product is (brief,
+   confirmed by the code), users and roles, **one line per feature** with its repositories, main flows,
+   glossary. Where the brief and the code disagree, say so in the summary.
+3. Feature documents: with `knowledge.depth: quick` (the default) mark every feature "(not documented
+   yet)": they are written on demand by `/ai-workspace:learn <feature>`, or automatically the first time
+   a task changes the feature. With `knowledge.depth: deep`, write them now, following the learn skill.
+4. Index:
+   ```bash
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/kb.py" --root . index-md
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/kb.py" --root . index
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/kb.py" --root . check
+   ```
+
+For both documents, `generated_from` maps each codebase to `git -C <clone> rev-parse --short HEAD`.
+On a re-run, update these documents only if they still carry the generated marker; otherwise leave them.
 
 ## 5. Path-scoped rules
 
@@ -279,7 +319,9 @@ Write the rules for each tool in `tools`:
 
 ## 7. Summary
 
-Report a table: codebase · cloned/updated/failed · base branch · stack · test command · rules written. If only one
+Report a table: codebase · cloned/updated/failed · base branch · stack · test command · rules written.
+Then the knowledge base: the features found (with how many are documented), how the parts connect,
+and "Ask about the product with `/ai-workspace:ask`, document a feature with `/ai-workspace:learn`". If only one
 AI tool is set up, add one line: "Colleagues using Cursor (or Claude Code)? They can run
 `/ai-workspace:init` once from their tool, or add it to `tools:` in `workspace.yaml`." Then list
 skipped user-owned files, clone failures with the error, unverified commands, and stacks without a

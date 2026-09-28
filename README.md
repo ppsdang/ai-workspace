@@ -7,6 +7,10 @@ You give it a ticket (`/ai-workspace:task PAY-123`). It reads the ticket, figure
 are affected, shows you a plan, writes the code and tests, has the work reviewed, and opens one merge
 request per repository. It stops for your approval before it starts coding and before it pushes.
 
+It also **learns your product**: after setup it keeps an overview, an architecture map and feature
+documents in the workspace, searches them at the start of every ticket, and adds what each ticket
+teaches it, so it gets better at your codebase over time.
+
 Works with any language, Jira / GitHub Issues / Trello / markdown task files / your own tracker, and
 GitHub, GitLab (including self-hosted, e.g. `gitlab.yourcompany.com`) or any other git host, with
 GitHub Actions, GitLab CI, Jenkins or your own CI, or entirely on your machine with nothing pushed.
@@ -30,7 +34,7 @@ To update later: `/plugin marketplace update ai-workspace`.
 
 ### In Cursor (beta)
 
-See [Using it in Cursor](#9-using-it-in-cursor-beta) below for the full walkthrough. In short:
+See [Using it in Cursor](#10-using-it-in-cursor-beta) below for the full walkthrough. In short:
 
 ```bash
 git clone https://github.com/ppsdang/ai-workspace ~/.cursor/plugins/local/ai-workspace
@@ -46,7 +50,7 @@ Every outside service is optional. Pick one line per row; `/ai-workspace:init` a
 |---|---|---|
 | **Code** | **Local only**: nothing is pushed; keep the branch or merge it into your local `main`. **Or push with plain `git`**: on GitLab (including self-hosted) the MR opens automatically from the push; on GitHub and other hosts you get a link to open the PR | [`gh`](https://cli.github.com) (GitHub, Enterprise: `gh auth login --hostname …`) or [`glab`](https://gitlab.com/gitlab-org/cli) (GitLab, self-hosted: `glab auth login --hostname gitlab.yourcompany.com`) add full MR descriptions, linked MRs and review-comment handling |
 | **Pipelines** | **None**: tests always run on your machine during a task | GitHub Actions / GitLab CI (through `gh`/`glab`), **Jenkins** (`JENKINS_USER` + `JENKINS_TOKEN`), or any other CI through a small script |
-| **Tasks** | Describe the task in the command, or use markdown task files | Jira, GitHub Issues, Trello, or your own tracker (see [section 5](#5-connect-your-tracker)) |
+| **Tasks** | Describe the task in the command, or use markdown task files | Jira, GitHub Issues, Trello, or your own tracker (see [section 5](#6-connect-your-tracker)) |
 
 ## 2. Try it first (optional, 5 minutes)
 
@@ -90,16 +94,18 @@ It asks you a few questions:
 
 | It asks | Example answer |
 |---|---|
-| Name of the workspace | Payroll |
-| Where your tasks are | Jira, `https://acme.atlassian.net`, project `PAY` |
-| Status names to use | "In Progress" when work starts, "In Review" when MRs are open |
-| Where your code is hosted | **GitHub**, **Other git server** (GitLab, self-hosted GitLab such as `https://gitlab.yourcompany.com`, Bitbucket, …), or **Local only** |
-| What runs your pipelines | the same as the host, **Jenkins** (its address, one example job name to work out the naming pattern, and any jobs that build several repos together), other, or none |
-| Your repositories (several-repo case) | `backend  git@gitlab.acme.com:payroll/backend.git`, `frontend  …` (a local folder works too) |
+| Name of the workspace | proposes the folder name; just confirm |
+| Your repositories (several-repo case) | paste the links, one or many, in any format: `git@gitlab.acme.com:payroll/backend.git, https://gitlab.acme.com/payroll/frontend.git`. Names come from the links; a folder on disk works too |
+| Where your code is hosted | pre-selected from the links: **GitHub**, **Another git server** (GitLab, self-hosted GitLab, Bitbucket, …) or **Local only** |
+| Where your tasks are | **Jira** (site, project, two status names), **GitHub Issues**, **Trello**, or **somewhere else**: task files, your company's own tool, or none |
+| What runs your pipelines | the git host's own CI, **Jenkins** (just its address here), something else, or none |
+| The product, in your words (optional) | "Payroll for small companies: HR runs monthly payroll, employees download payslips and tax forms." Plus links or paths to existing docs |
 
-It then downloads the repositories, works out each one's language, framework and test commands, and
-saves your answers in `workspace.yaml`. **Approve the prompts** it shows for writing files under
-`.claude/`; that's where its settings go.
+You confirm a plain-language summary, then it downloads the repositories, works out each one's
+language, framework and test commands, asks the questions that need the code (monorepo parts, Jenkins
+job names), and **studies the application** to write the first knowledge documents (see
+[What it knows about your product](#5-what-it-knows-about-your-product)). **Approve the prompts** it
+shows for writing files under `.claude/`; that's where its settings go.
 
 Finally, check that everything is connected:
 
@@ -108,7 +114,7 @@ Finally, check that everything is connected:
 ```
 
 It tells you what's missing, for example "`JIRA_API_TOKEN` not set" or "`glab` not logged in", and how
-to fix it (see [Connect your tracker](#5-connect-your-tracker)).
+to fix it (see [Connect your tracker](#6-connect-your-tracker)).
 
 ## 4. Work a ticket
 
@@ -153,8 +159,41 @@ left off. When you open Claude in the workspace, it reminds you of unfinished ti
 | The pipeline failed (GitHub Actions, GitLab CI, Jenkins, …) | `/ai-workspace:ci PAY-123`: it reads the failure, fixes it if the change caused it (at most twice), and tells you otherwise |
 | Reviewers left comments | `/ai-workspace:respond PAY-123`: it proposes a fix, an explanation or a question for each comment, and after your OK fixes the code and replies |
 | You want an overview | `/ai-workspace:status`: branch and changes for every repository |
+| You have a question about the product | `/ai-workspace:ask "…"`: see [What it knows about your product](#5-what-it-knows-about-your-product) |
 
-## 5. Connect your tracker
+## 5. What it knows about your product
+
+Everything the workspace learns is kept as short, readable documents in `context/`, committed with
+the workspace so the whole team (and every future ticket) shares it:
+
+| Document | What's in it | Written |
+|---|---|---|
+| `product/brief.md` | your description of the product (from setup) | by you; edit any time |
+| `product/overview.md` | what the product does, users and roles, feature list, main flows, glossary | at setup |
+| `architecture/system.md` | how the repositories fit together: which app calls which API, databases, external services | at setup |
+| `product/features/<feature>.md` | one feature in depth: behaviour, where it lives in each repository, flow, data, tests, gotchas | on demand, or the first time a ticket changes that feature |
+| `decisions/`, `learnings/` | choices made in tickets and why; things that cost time and how to avoid them | after tickets |
+| `codebases/<repo>.md` | each repository's stack, commands and conventions | at setup |
+| `INDEX.md` | one line per document | automatically |
+
+**How it's used.** At the start of every ticket, the workspace searches these documents for the ticket's
+words and gives the relevant ones to the analysis, so work starts from what's already known instead of
+rediscovering it. Only the short index is always loaded; documents are read when they're relevant,
+which keeps Claude focused and cheap. The code always wins: if a document is out of date, it's corrected.
+
+**Commands:**
+
+| Command | What it does |
+|---|---|
+| `/ai-workspace:ask "how is tax calculated on payslips?"` | answers from the documents and the code, with file references |
+| `/ai-workspace:learn payslips` | studies a feature across all repositories and writes its document (`all` for every undocumented feature) |
+| `/ai-workspace:refresh` | updates documents whose code has changed since they were written, and folds in merged tickets |
+
+Setup writes the overview and architecture only (quick). To document every feature at setup instead,
+set `knowledge: { depth: deep }` in `workspace.yaml`; it takes longer on large codebases. Search runs
+locally (SQLite, built into Python): nothing is sent anywhere and there is nothing to install.
+
+## 6. Connect your tracker
 
 Set this during `/ai-workspace:init`, or edit `workspace.yaml` later. Tokens go in your shell profile
 (`~/.zshrc`, `~/.bashrc`), **never** in `workspace.yaml`.
@@ -168,7 +207,7 @@ Set this during `/ai-workspace:init`, or edit `workspace.yaml` later. Tokens go 
 | **Your company's own tracker** | a small script that can fetch a task, add a comment and change its status, or an MCP server for it; see [custom trackers](skills/task/references/trackers.md#custom-in-house-trackers) |
 | **None** | describe the work in the command, as above |
 
-## 6. Connect your pipelines
+## 7. Connect your pipelines
 
 `/ai-workspace:ci` reads your pipeline results after the MR is open. Set this up during
 `/ai-workspace:init`, or in the `ci:` part of `workspace.yaml`.
@@ -237,7 +276,7 @@ What happens when a ticket changes backend, frontend or both:
 
 Full reference: [configuration: `ci`](docs/configuration.md#ci).
 
-## 7. Useful settings
+## 8. Useful settings
 
 All in `workspace.yaml` ([full reference](docs/configuration.md)):
 
@@ -245,7 +284,7 @@ All in `workspace.yaml` ([full reference](docs/configuration.md)):
 |---|---|
 | work on several tickets at the same time (e.g. one per terminal) | `worktrees: true` |
 | keep everything on my machine, never push | `git_host: { type: none }` |
-| use our Jenkins for `/ai-workspace:ci` | see [Connect your pipelines](#6-connect-your-pipelines) |
+| use our Jenkins for `/ai-workspace:ci` | see [Connect your pipelines](#7-connect-your-pipelines) |
 | always approve the plan, even for small fixes | `gates: { quick_fix: both }` |
 | stop being asked to confirm every push and MR | `guard: { confirm_outward: false }` (destructive commands stay blocked) |
 | open MRs as drafts | `git_host: { draft: true }` |
@@ -253,7 +292,7 @@ All in `workspace.yaml` ([full reference](docs/configuration.md)):
 | treat parts of one big repository separately (monorepo) | `components:` on that codebase |
 | add a repository later | add it to `codebases:` and run `/ai-workspace:init` again |
 
-## 8. Questions
+## 9. Questions
 
 **Is it safe to let it push?** It never pushes to protected branches (`main`, `master`, `develop`,
 `release/*` by default), never force-pushes and never merges, and it asks you before every push, MR
@@ -276,7 +315,7 @@ branch if you like. After shipping, close the MR as you normally would.
 **Can I use it with Superpowers?** Yes. If [Superpowers](https://github.com/obra/superpowers) is
 installed, the task flow uses its test-driven development and debugging skills.
 
-## 9. Using it in Cursor (beta)
+## 10. Using it in Cursor (beta)
 
 The same plugin runs in Cursor with the same commands. Support is new: it follows Cursor's documented
 plugin format and is tested automatically, but hasn't had much real-world use yet. Please
@@ -302,7 +341,7 @@ Choose one:
 ### Step 2: check that it loaded
 
 1. Open **Cursor Settings → Customize** (or the Plugins page). *ai-workspace* should be listed, with
-   its skills: `init`, `task`, `ci`, `respond`, `status`, `doctor`.
+   its skills: `init`, `task`, `ci`, `respond`, `ask`, `learn`, `refresh`, `status`, `doctor`.
 2. Open the **Hooks** tab (or the *Hooks* output channel). Two hooks from ai-workspace should be active:
    `beforeShellExecution` (the safety guard) and `sessionStart`.
 3. Optional safety test: in a new empty folder, run `git init`, open it in Cursor, and ask the agent to

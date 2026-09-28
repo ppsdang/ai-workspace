@@ -1,8 +1,12 @@
 ---
+title: {{NAME}} (repository profile)
+kind: codebase
+summary: {{SUMMARY}}
 codebase: {{NAME}}
 path: {{PATH}}
-generated_from: {{COMMIT_SHA}}
-generated_at: {{DATE}}
+sources: ["{{SOURCE}}"]
+generated_from: { {{NAME}}: {{COMMIT_SHA}} }
+updated: {{DATE}}
 ---
 
 # {{NAME}}

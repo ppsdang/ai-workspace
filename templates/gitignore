@@ -1,5 +1,7 @@
 # ai-workspace: cloned repos keep their own git history
 /codebase/
+# knowledge-base search index (rebuilt from context/*.md)
+/context/.kb.sqlite
 # per-task worktrees (worktrees: true)
 /work/
 # AI working artifacts (remove this line to share task history with the team)

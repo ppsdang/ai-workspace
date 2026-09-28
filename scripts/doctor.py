@@ -125,6 +125,7 @@ def check_workspace(root: Path, codebases, tools=("claude-code",)):
         profiles = root / "context" / "codebases"
         if not (profiles / f"{name}.md").is_file() and not any(profiles.glob(f"{name}--*.md")):
             add("WARN", f"profile {name}", "missing; re-run /ai-workspace:init")
+    check_knowledge(root)
     single = any(spec.partition("=")[2] == "." for spec in codebases)
     expected = []
     if "claude-code" in tools:
@@ -134,6 +135,27 @@ def check_workspace(root: Path, codebases, tools=("claude-code",)):
     for f in expected:
         if not (root / f).is_file():
             add("WARN", f, "missing; re-run /ai-workspace:init (and approve its file writes)")
+
+
+def check_knowledge(root: Path):
+    ctx = root / "context"
+    if not (ctx / "INDEX.md").is_file():
+        add("WARN", "knowledge", "no context/INDEX.md yet: run /ai-workspace:init (after adding repositories)")
+        return
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import kb
+        docs = kb.documents(root)
+        stale = kb.stale(root)
+        undocumented = sum(t.count("(not documented yet)") for t in
+                           [(ctx / "product" / "overview.md").read_text(encoding="utf-8")]
+                           if (ctx / "product" / "overview.md").is_file())
+    except Exception as e:  # noqa: BLE001 - a readiness check must not crash
+        add("WARN", "knowledge", f"could not read the knowledge base: {e}")
+        return
+    add("OK" if not stale else "WARN", "knowledge",
+        f"{len(docs)} documents" + (f", {len(stale)} out of date (run /ai-workspace:refresh)" if stale else "")
+        + (f", {undocumented} features not documented yet (/ai-workspace:learn)" if undocumented else ""))
 
 
 def main(argv=None) -> int:
