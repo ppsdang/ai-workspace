@@ -83,7 +83,7 @@ It asks you a few questions:
 | Where your tasks are | Jira, `https://acme.atlassian.net`, project `PAY` |
 | Status names to use | "In Progress" when work starts, "In Review" when MRs are open |
 | Where your code is hosted | **GitHub**, **Other git server** (GitLab, self-hosted GitLab such as `https://gitlab.yourcompany.com`, Bitbucket, …), or **Local only** |
-| What runs your pipelines | the same as the host, **Jenkins** (e.g. `https://jenkins.yourcompany.com` and a job per repo), other, or none |
+| What runs your pipelines | the same as the host, **Jenkins** (its address, one example job name to work out the naming pattern, and any jobs that build several repos together), other, or none |
 | Your repositories (several-repo case) | `backend  git@gitlab.acme.com:payroll/backend.git`, `frontend  …` (a local folder works too) |
 
 It then downloads the repositories, works out each one's language, framework and test commands, and
@@ -157,7 +157,76 @@ Set this during `/ai-workspace:init`, or edit `workspace.yaml` later. Tokens go 
 | **Your company's own tracker** | a small script that can fetch a task, add a comment and change its status, or an MCP server for it; see [custom trackers](skills/task/references/trackers.md#custom-in-house-trackers) |
 | **None** | describe the work in the command, as above |
 
-## 6. Useful settings
+## 6. Connect your pipelines
+
+`/ai-workspace:ci` reads your pipeline results after the MR is open. Set this up during
+`/ai-workspace:init`, or in the `ci:` part of `workspace.yaml`.
+
+| Your CI | What to set up |
+|---|---|
+| **GitHub Actions / GitLab CI** | nothing beyond `gh` / `glab` being logged in (`ci: { provider: host }`, the default) |
+| **Jenkins** | the steps below |
+| **Something else** (TeamCity, Bamboo, Azure Pipelines, …) | a small script that reports status, prints a log and starts a re-run; see [custom CI](docs/configuration.md#ci) |
+| **No pipeline** | `ci: { provider: none }`; tests still run on your machine in every task |
+
+### Jenkins, step by step
+
+**1. Credentials.** Create an API token in Jenkins (click your name at the top right → **Security**, or
+**Configure** on older versions → **API Token** → Add new token) and add it to your shell profile:
+
+```bash
+export JENKINS_USER=your.name
+export JENKINS_TOKEN=…
+```
+
+**2. Tell it where Jenkins is and how jobs are named.** Most teams name jobs after the repository, so
+one pattern covers every repo:
+
+```yaml
+ci:
+  provider: jenkins
+  url: https://jenkins.yourcompany.com
+  job_pattern: "{group}/{repo}"     # git@gitlab.yourcompany.com:payroll/backend.git → job payroll/backend
+```
+
+A repository whose job is named differently gets its own `ci_job: legacy/old-api-build`.
+
+**3. Monorepos with a job per part** (optional): `component_job_pattern: "{repo}/{component}"`, or a
+`ci_job` on each component. Only the jobs of the parts a ticket changed are checked.
+
+**4. Shared jobs** (optional). Some pipelines build **several repositories together**, like an
+integration or end-to-end job that checks out both backend and frontend. List each of those once,
+with the repositories it builds:
+
+```yaml
+ci:
+  provider: jenkins
+  url: https://jenkins.yourcompany.com
+  job_pattern: "{group}/{repo}"
+  shared_jobs:
+    - job: payroll/integration
+      codebases: [backend, frontend]
+      parameters:                           # only if the job is started with branch parameters
+        BACKEND_BRANCH: "{branch:backend}"
+        FRONTEND_BRANCH: "{branch:frontend}"
+```
+
+What happens when a ticket changes backend, frontend or both:
+
+- **Both kinds of jobs are checked:** each repository's own job and the shared job.
+- **It waits for the right build.** A shared build only counts if it contains *all* of the ticket's
+  changes. After you push backend and then frontend, Jenkins may start one build for each push; the
+  first has only the backend change, so it's reported as "the combined build hasn't run yet" instead
+  of a false pass or failure.
+- **Re-runs use the right branches.** `{branch:backend}` becomes the ticket's branch if the ticket
+  changed backend, and backend's normal branch (e.g. `main`) if it didn't. You're asked before any re-run.
+- **It fixes only its own changes.** If the shared build fails in a repository the ticket didn't touch,
+  it says so, since that's not caused by the ticket, instead of changing that repository.
+- **A repository with no job of its own**, built only by the shared job, gets `ci_job: none`.
+
+Full reference: [configuration: `ci`](docs/configuration.md#ci).
+
+## 7. Useful settings
 
 All in `workspace.yaml` ([full reference](docs/configuration.md)):
 
@@ -165,15 +234,15 @@ All in `workspace.yaml` ([full reference](docs/configuration.md)):
 |---|---|
 | work on several tickets at the same time (e.g. one per terminal) | `worktrees: true` |
 | keep everything on my machine, never push | `git_host: { type: none }` |
-| use our Jenkins for `/ai-workspace:ci` | `ci: { provider: jenkins, url: https://jenkins.yourcompany.com, job_pattern: "{group}/{repo}" }`; `ci_job:` only for repos that don't follow the pattern; `shared_jobs:` for pipelines that build several repos together |
+| use our Jenkins for `/ai-workspace:ci` | see [Connect your pipelines](#6-connect-your-pipelines) |
 | always approve the plan, even for small fixes | `gates: { quick_fix: both }` |
 | stop being asked to confirm every push and MR | `guard: { confirm_outward: false }` (destructive commands stay blocked) |
 | open MRs as drafts | `git_host: { draft: true }` |
 | skip test-first for a repository without tests | `tdd: off` on that codebase |
-| treat parts of one big repository separately (monorepo) | `components:` on that codebase, optionally with a Jenkins `ci_job` per component |
+| treat parts of one big repository separately (monorepo) | `components:` on that codebase |
 | add a repository later | add it to `codebases:` and run `/ai-workspace:init` again |
 
-## 7. Questions
+## 8. Questions
 
 **Is it safe to let it push?** It never pushes to protected branches (`main`, `master`, `develop`,
 `release/*` by default), never force-pushes and never merges, and it asks you before every push, MR
