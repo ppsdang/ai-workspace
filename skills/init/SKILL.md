@@ -117,7 +117,7 @@ explains this until it exists). **None** → `none`.
 
 ### Q7. Confirm and save
 Summarise in plain words, not YAML, e.g. *"Workspace payroll: 3 repositories on
-gitlab.oodleslab.com (backend, frontend, mobile), tasks in Jira project PAY, pipelines on Jenkins, MRs
+gitlab.example.com (backend, frontend, mobile), tasks in Jira project PAY, pipelines on Jenkins, MRs
 opened through git push."* Then **Save** / **Change something** / **Show the file**. Write
 `workspace.yaml` from `templates/workspace.yaml` on *Save*.
 

@@ -196,7 +196,7 @@ class JobPatternTest(unittest.TestCase):
 
     def test_patterns_from_clone_urls(self):
         cases = [
-            (["--clone-url", "git@gitlab.oodleslab.com:payroll/backend.git", "--codebase", "backend",
+            (["--clone-url", "git@gitlab.example.com:payroll/backend.git", "--codebase", "backend",
               "--pattern", "{group}/{repo}"], "payroll/backend"),
             (["--clone-url", "https://gitlab.example.com/acme/tools/cli.git", "--codebase", "cli",
               "--pattern", "{owner}/{repo}-ci"], "acme/cli-ci"),

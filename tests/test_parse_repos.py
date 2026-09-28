@@ -17,8 +17,8 @@ def parse(text, existing=""):
 
 class ParseReposTest(unittest.TestCase):
     def test_one_link(self):
-        code, repos = parse("git@gitlab.oodleslab.com:payroll/backend.git")
-        self.assertEqual((code, repos), (0, [{"name": "backend", "url": "git@gitlab.oodleslab.com:payroll/backend.git"}]))
+        code, repos = parse("git@gitlab.example.com:payroll/backend.git")
+        self.assertEqual((code, repos), (0, [{"name": "backend", "url": "git@gitlab.example.com:payroll/backend.git"}]))
 
     def test_many_links_any_separator(self):
         text = """git@gitlab.example.com:payroll/backend.git, https://gitlab.example.com/payroll/frontend.git
@@ -33,8 +33,8 @@ class ParseReposTest(unittest.TestCase):
                          ["git@gitlab.example.com:shop/api.git", "https://gitlab.example.com/shop/web.git"])
 
     def test_prose_words_are_not_names(self):
-        text = ("Here are our repos: git@gitlab.oodleslab.com:payroll/backend.git, "
-                "https://gitlab.oodleslab.com/payroll/frontend.git and also git@gitlab.oodleslab.com:payroll/mobile-app.git")
+        text = ("Here are our repos: git@gitlab.example.com:payroll/backend.git, "
+                "https://gitlab.example.com/payroll/frontend.git and also git@gitlab.example.com:payroll/mobile-app.git")
         code, repos = parse(text)
         self.assertEqual([r["name"] for r in repos], ["backend", "frontend", "mobile-app"])
         code, repos = parse("repos: git@h:a/api.git plus git@h:a/web.git")
