@@ -316,16 +316,15 @@ confirmation prompts. Please report it.
 
 1. Create the workspace folder (several repositories) or use your existing repository (one repository),
    as in [Set up your project](#3-set-up-your-project), and open it with **File → Open Folder**.
-2. In the Agent chat, type `/ai-workspace:init` (skills appear in the `/` menu).
-3. When it asks **which AI tools your team uses**, choose **Cursor**, or **Both** if some colleagues use
-   Claude Code.
-4. Answer the other questions as usual (tracker, git host, pipelines). When it's done, run `/ai-workspace:doctor`.
+2. In the Agent chat, type `/ai-workspace:init` (skills appear in the `/` menu) and answer its questions
+   (tracker, git host, pipelines). It sets up the Cursor files automatically, because it's running in Cursor.
+3. When it's done, run `/ai-workspace:doctor`.
 
 What `init` writes for Cursor:
 
 | File | Purpose |
 |---|---|
-| `AGENTS.md` | the workspace instructions; Cursor reads it automatically (with **Both**, `CLAUDE.md` just points to it) |
+| `AGENTS.md` | the workspace instructions; Cursor reads it automatically (if the workspace is also used from Claude Code, `CLAUDE.md` just points to it) |
 | `.cursor/rules/*.mdc` | the per-repository and per-language guidance, applied only to matching files |
 | `workspace.yaml`, `context/`, `codebase/`, `tasks/` | the same as for Claude Code |
 
@@ -345,9 +344,10 @@ with the number.
 
 ### Teams using both tools
 
-Set `tools: [claude-code, cursor]` in `workspace.yaml` (or choose **Both** in `init`). Both sets of files
-are written from the same answers, so a shared workspace repository works for everyone, and each
-person uses the tool they prefer.
+Whoever sets up the workspace gets the files for their own tool. For colleagues on the other tool, either
+run `/ai-workspace:init` once from that tool (it keeps all existing answers and adds its files), or set
+`tools: [claude-code, cursor]` in `workspace.yaml` and run `init` again. From then on a shared workspace
+repository works for everyone, and each person uses the tool they prefer.
 
 ### What's different in Cursor
 

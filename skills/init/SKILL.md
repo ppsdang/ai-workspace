@@ -33,12 +33,26 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   name, tracker (jira / github / trello / markdown / custom / none, plus that type's fields and the
   `statuses.start` / `statuses.review` names), git host (github / gitlab) and the codebases
   (name + clone URL, optional base branch). Show the file and get confirmation before writing it.
-- **Asking for the tracker.** AskUserQuestion shows at most 4 options, and there are 6 tracker types, so
-  never drop one. Ask in two steps:
-  1. *Where are your tasks?* **Jira** / **GitHub Issues** / **Trello** / **Something else**
-     (markdown files, an in-house tracker, or none).
-  2. Only if *Something else*: **Markdown task files** / **In-house or other tracker** (custom: a
-     script or MCP server) / **No tracker** (describe tasks in the command).
+- **How to ask.** Questions are for people, not for config files:
+  - Write options and their descriptions in plain words. Never show config values or jargon in them
+    (no `tools: [...]`, `type: gitlab`, `custom`, "MCP", "adapter"); those belong only in `workspace.yaml`.
+  - The question prompt holds at most 4 options and always adds its own free-text choice, so don't add a
+    separate "Other" option of your own.
+  - A follow-up that narrows down an earlier answer **continues that question**: keep the same header,
+    and say what the user picked, e.g. *"Not Jira, GitHub or Trello: where do you keep them?"*. Never ask it
+    as a new, unexplained question.
+  - If the user's free-text answer already settles it (e.g. "we use Oodles Task Management", "task files
+    in a folder", "no tracker"), map it directly and skip the follow-up.
+- **Asking for the tracker** (header *Tasks*). Six tracker types don't fit in one prompt, so:
+  1. *Where do you keep your tasks?* **Jira** / **GitHub Issues** / **Trello** / **Somewhere else**
+     (description: "Task files, your company's own tool, or no tracker at all").
+  2. Only after *Somewhere else*, as the continuation (same header *Tasks*):
+     *"Not Jira, GitHub or Trello: where do you keep them?"*
+     - **Task files in this workspace**: "Simple files like backlog/task1.md with a title, description
+       and acceptance criteria; their status is updated in the file" → `markdown`
+     - **Our own tool**: "Your company's tracker (for example an in-house task system), connected once
+       through a small script" → `custom`
+     - **No tracker**: "Describe each task when you start it" → `none`
   Then ask only for the chosen type's fields (see `${CLAUDE_PLUGIN_ROOT}/skills/task/references/trackers.md`)
   and its `statuses.start` / `statuses.review` names. Offer only these tracker types; don't suggest
   others (for example GitLab issues) that have no adapter.
@@ -49,15 +63,18 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   1. **GitHub**: github.com, or GitHub Enterprise → `type: github` (+ `url: https://<host>` for Enterprise).
   2. **Other git server**: GitLab, self-hosted GitLab, Bitbucket, Gitea, Azure DevOps, … Ask for the
      server's web address if it can't be derived. If it's GitLab (the hostname contains `gitlab`, or the
-     user confirms when asked "Is this a GitLab server?"), use `type: gitlab`, because GitLab can open MRs
+     user confirms when asked, as a continuation of the same question, "Is <host> a GitLab server?"),
+     use `type: gitlab`, because GitLab can open MRs
      from `git push`; otherwise `type: other` (the flow pushes and gives a link to open the PR). Set `url:`
      for anything that isn't gitlab.com.
   3. **Nowhere, local only** → `type: none`: nothing is ever pushed; finished work stays on a local branch
      or is merged locally.
   If the codebases live on different hosts, say that one `git_host` applies to all and ask which to use.
-- **Asking which AI tools the team uses**: *Claude Code* / *Cursor* / *Both* → `tools: [claude-code]`,
-  `[cursor]` or `[claude-code, cursor]` (default `[claude-code]`). This decides which instruction and rule
-  files are written in steps 5 and 6, so people using either tool get the same guidance in one workspace.
+- **Which AI tools** (don't ask): set `tools` from the tool running this skill: `[claude-code]` in
+  Claude Code, `[cursor]` in Cursor. Add the other tool when the workspace already has its files
+  (`.cursor/rules/` or `AGENTS.md` for Cursor, `.claude/` or `CLAUDE.md` for Claude Code) or
+  `workspace.yaml` already lists it. This decides which instruction and rule files steps 5 and 6 write.
+  Mention in the summary how to add the other tool for colleagues who use it.
 - **Asking for CI** (skip for local only, which implies `ci.provider: none`): *What runs your pipelines?*
   **Same as the git host** (GitHub Actions / GitLab CI) → `host`; **Jenkins** → `jenkins`, ask for its URL
   (`ci.url`), then work out the job names with as few questions as possible:
@@ -199,6 +216,8 @@ Write the rules for each tool in `tools`:
 
 ## 7. Summary
 
-Report a table: codebase · cloned/updated/failed · stack · test command · rules written. Then list
+Report a table: codebase · cloned/updated/failed · stack · test command · rules written. If only one
+AI tool is set up, add one line: "Colleagues using Cursor (or Claude Code)? They can run
+`/ai-workspace:init` once from their tool, or add it to `tools:` in `workspace.yaml`." Then list
 skipped user-owned files, clone failures with the error, unverified commands, and stacks without a
 rule template. Suggest next steps: `/ai-workspace:doctor`, then `/ai-workspace:status`, then work a ticket.

@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-09-28
+
+### Changed
+- `init` no longer asks which AI tools the team uses: it sets up the tool it's running in, adds the
+  other when its files already exist, and explains in the summary how colleagues on the other tool join.
+- `init` questions are written in plain words, without config values or jargon in the options, and
+  without a second "Other" next to the prompt's own free-text choice. The tracker follow-up now reads as
+  the continuation of the first question ("Not Jira, GitHub or Trello: where do you keep them?"), and a
+  clear free-text answer skips it.
+
 ## [1.5.0] - 2026-09-28
 
 ### Added
