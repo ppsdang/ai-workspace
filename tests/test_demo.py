@@ -24,7 +24,7 @@ class DemoTest(unittest.TestCase):
                 log = subprocess.run(["git", "-C", str(target / "remotes" / f"{name}.git"), "log", "--oneline", "main"],
                                      capture_output=True, text=True)
                 self.assertIn("Initial commit", log.stdout)
-            manifest = (target / "shop-workspace" / "workspace.yaml").read_text()
+            manifest = (target / "shop-workspace" / "workspace.yaml").read_text(encoding="utf-8")
             url = next(line.split("url:", 1)[1].strip() for line in manifest.splitlines() if "url:" in line)
             self.assertTrue(url.endswith("remotes/api.git"), url)  # Git Bash on Windows writes /c/... paths
             self.assertTrue((target / "shop-workspace" / "backlog" / "task2.md").is_file())
@@ -44,9 +44,9 @@ class DemoTest(unittest.TestCase):
 
 class SchemaTest(unittest.TestCase):
     def test_schema_is_valid_json_and_covers_template_keys(self):
-        schema = json.loads((ROOT / "schema/workspace.schema.json").read_text())
+        schema = json.loads((ROOT / "schema/workspace.schema.json").read_text(encoding="utf-8"))
         top = set(schema["properties"])
-        template = (ROOT / "templates/workspace.yaml").read_text()
+        template = (ROOT / "templates/workspace.yaml").read_text(encoding="utf-8")
         keys = set(re.findall(r"^([a-z_]+):", template, re.M))
         self.assertLessEqual(keys, top, f"template keys missing from schema: {keys - top}")
         codebase = schema["properties"]["codebases"]["items"]["properties"]

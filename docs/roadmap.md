@@ -25,7 +25,6 @@ worktrees, single-repo and monorepo support, evals (0.5), public release (1.0).
   (secret values reach MCP servers but not the scripts the model runs).
 - **More adapters**: Linear, Azure Boards; Bitbucket as a git host.
 - **More rule templates**: Ruby, Rust, Swift, Vue, Svelte, Elixir.
-- **Windows**: verify in CI and remove the non-blocking flag.
 - **Headless use**: documented recipes for `claude -p` and the Claude GitHub Action.
 
 Ideas and votes are welcome in the issue tracker.

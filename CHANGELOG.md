@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-09-28
+
+### Fixed
+- Repository links: Windows folder paths (`C:\Users\me\code\api`, `C:/…`) are recognised when setting up
+  a workspace from folders on disk.
+- Tests read files as UTF-8 on Windows.
+
+### Changed
+- CI: Windows tests are now required to pass, like Linux and macOS.
+
 ## [1.6.0] - 2026-09-28
 
 ### Changed

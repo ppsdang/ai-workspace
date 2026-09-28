@@ -21,20 +21,21 @@ import sys
 SSH_SCP = r"[\w.-]+@[\w.-]+:[\w./~-]+"
 URL = r"(?:https?|ssh|git)://[^\s,;<>()\"'`]+"
 LOCAL = r"(?:~|\.{1,2})?/[^\s,;<>()\"'`]+"
-LINK = re.compile(rf"(?P<link>{URL}|{SSH_SCP}|{LOCAL})")
+WINDOWS = r"[A-Za-z]:[\\/][^\s,;<>()\"'`]+"          # C:\Users\me\code\api or C:/Users/...
+LINK = re.compile(rf"(?P<link>{URL}|{WINDOWS}|{SSH_SCP}|{LOCAL})")
 NAME_OK = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 def split_link(link: str) -> tuple[str, str]:
     """(group, repo) of a link, e.g. ("payroll", "backend")."""
-    u = link.rstrip("/").removesuffix(".git")
+    u = link.rstrip("/\\").removesuffix(".git")
     if "://" in u:
         path = re.sub(r"^[a-z+]+://[^/]+", "", u)
     elif re.match(SSH_SCP + "$", u):
         path = u.split(":", 1)[1]
     else:
         path = u
-    parts = [p for p in path.split("/") if p and p not in (".", "..", "~")]
+    parts = [p for p in re.split(r"[\\/]", path) if p and p not in (".", "..", "~") and not re.fullmatch(r"[A-Za-z]:", p)]
     if not parts:
         return "", ""
     return (parts[-2] if len(parts) > 1 else ""), parts[-1]

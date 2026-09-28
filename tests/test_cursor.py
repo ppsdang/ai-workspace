@@ -102,23 +102,23 @@ class EmptyWorkspaceTest(unittest.TestCase):
 
 class CursorManifestTest(unittest.TestCase):
     def test_manifests_and_hooks(self):
-        plugin = json.loads((ROOT / ".cursor-plugin" / "plugin.json").read_text())
-        claude = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text())
+        plugin = json.loads((ROOT / ".cursor-plugin" / "plugin.json").read_text(encoding="utf-8"))
+        claude = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(plugin["name"], claude["name"])
         self.assertEqual(plugin["version"], claude["version"], "keep both manifests on the same version")
         # Cursor must not auto-discover hooks/hooks.json, which is in Claude Code's format
         self.assertEqual(plugin["hooks"], "cursor/hooks.json")
-        hooks = json.loads((ROOT / plugin["hooks"]).read_text())["hooks"]
+        hooks = json.loads((ROOT / plugin["hooks"]).read_text(encoding="utf-8"))["hooks"]
         self.assertEqual(set(hooks), {"beforeShellExecution", "sessionStart"})
         for entries in hooks.values():
             for entry in entries:
                 script = entry["command"].split('"')[1].replace("${CURSOR_PLUGIN_ROOT}", str(ROOT))
                 self.assertTrue(Path(script).is_file(), script)
                 self.assertIn("--format cursor", entry["command"])
-        market = json.loads((ROOT / ".cursor-plugin" / "marketplace.json").read_text())
+        market = json.loads((ROOT / ".cursor-plugin" / "marketplace.json").read_text(encoding="utf-8"))
         self.assertEqual(market["plugins"][0]["name"], plugin["name"])
         for skill in ROOT.glob("skills/*/SKILL.md"):
-            text = skill.read_text()
+            text = skill.read_text(encoding="utf-8")
             self.assertIn("AI_WORKSPACE_PLUGIN_ROOT", text, f"{skill} lacks the Cursor path fallback")
 
 

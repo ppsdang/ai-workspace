@@ -65,6 +65,19 @@ class ParseReposTest(unittest.TestCase):
             code, repos = parse(f"{repo} /definitely/missing/path")
             self.assertEqual(repos, [{"name": "my-service", "url": str(repo)}])
 
+    def test_windows_paths(self):
+        import os
+        sys.path.insert(0, str(SCRIPT.parent))
+        import parse_repos
+        self.assertEqual(parse_repos.split_link(r"C:\Users\me\code\billing-api"), ("code", "billing-api"))
+        self.assertEqual(parse_repos.split_link("C:/Users/me/code/web.git"), ("code", "web"))
+        link = parse_repos.LINK.search(r"use C:\Users\me\code\api please").group("link")
+        self.assertEqual(link, r"C:\Users\me\code\api")
+        if os.name == "nt":
+            with tempfile.TemporaryDirectory() as d:
+                code, repos = parse(str(Path(d)))
+                self.assertEqual(len(repos), 1)
+
     def test_nothing_found(self):
         code, repos = parse("not sure yet")
         self.assertEqual((code, repos), (2, []))

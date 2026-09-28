@@ -12,8 +12,6 @@ jobs:
   test:
     name: tests (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
-    # Windows support is not verified yet; keep the signal without blocking merges.
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
     strategy:
       fail-fast: false
       matrix:
