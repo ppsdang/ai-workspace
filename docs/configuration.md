@@ -58,11 +58,16 @@ comments[]`) or plain markdown. See [trackers.md](../skills/task/references/trac
 |---|---|---|---|
 | `provider` | `host` \| `jenkins` \| `custom` \| `none` | `host` | `host`: GitHub Actions / GitLab CI through `gh`/`glab`. `jenkins`: any Jenkins server. `custom`: your own script (TeamCity, Bamboo, Azure Pipelines, …). `none`: no pipeline; tests still run locally in every task |
 | `url` | URL | | Jenkins server, e.g. `https://jenkins.example.com`. Credentials: `JENKINS_USER` and `JENKINS_TOKEN` (a Jenkins API token) in your shell profile |
+| `job_pattern` | string | | Jenkins job path for every codebase, built from its clone URL, e.g. `{group}/{repo}`. Placeholders: `{group}` (full namespace, e.g. `payroll` or `acme/tools`), `{owner}` (its first part), `{repo}`, `{codebase}` |
+| `component_job_pattern` | string | | The same for monorepo components, with `{component}` added, e.g. `{repo}/{component}` |
 | `commands.status` / `.log` / `.rerun` | command templates | | `custom`: `{codebase}`, `{branch}`, `{sha}`, `{build}` are filled in. `status` prints `passed`, `failed` or `pending` (or summary JSON); `log` prints the build log |
 | `max_rounds` | int | `2` | CI-fix pushes per task before `/ai-workspace:ci` hands over to a human |
 
-For Jenkins, each codebase names its job with `ci_job` (the path shown in Jenkins, e.g.
-`payroll/backend`). In a monorepo, each component can have its own `ci_job`; `/ai-workspace:ci` then checks
+For Jenkins, set `job_pattern` when job names follow your repository paths: for
+`git@gitlab.example.com:payroll/backend.git`, `{group}/{repo}` gives `payroll/backend`. Add `ci_job` (the
+path shown in Jenkins) only to codebases or components whose job doesn't fit the pattern; an explicit
+`ci_job` always wins. In a monorepo, each component can have its own job (via `component_job_pattern` or
+its own `ci_job`); `/ai-workspace:ci` then checks
 only the jobs of the components the task changed, and falls back to the codebase's `ci_job` for components
 without one. Multibranch pipelines and single jobs are both supported: builds are matched to the branch
 and commit.
@@ -73,7 +78,7 @@ and commit.
 |---|---|
 | `name` | Folder name under `codebase/` and the name used everywhere (letters, digits, `.`, `_`, `-`) |
 | `url` | Clone URL, or a local folder to copy from (multi mode) |
-| `ci_job` | Jenkins job path for this codebase |
+| `ci_job` | Jenkins job path for this codebase, when it doesn't follow `ci.job_pattern` |
 | `path` | Single mode only: `"."` (the repository itself) |
 | `branch` | Base branch for this codebase |
 | `tdd` | `strict` \| `when-tests-exist` (default) \| `off` |
@@ -151,10 +156,11 @@ codebases:
 version: 1
 tracker: { type: jira, base_url: https://example.atlassian.net, project: PAY }
 git_host: { type: gitlab, url: https://gitlab.example.com }
-ci: { provider: jenkins, url: https://jenkins.example.com }
+ci: { provider: jenkins, url: https://jenkins.example.com, job_pattern: "{group}/{repo}" }
 codebases:
-  - { name: backend, url: git@gitlab.example.com:payroll/backend.git, ci_job: payroll/backend }
-  - { name: frontend, url: git@gitlab.example.com:payroll/frontend.git, ci_job: payroll/frontend }
+  - { name: backend, url: git@gitlab.example.com:payroll/backend.git }    # → payroll/backend
+  - { name: frontend, url: git@gitlab.example.com:payroll/frontend.git }  # → payroll/frontend
+  - { name: legacy, url: git@gitlab.example.com:payroll/old-api.git, ci_job: legacy/old-api-build }  # exception
 ```
 
 **Monorepo with a Jenkins job per component:**
@@ -162,12 +168,12 @@ codebases:
 ```yaml
 version: 1
 git_host: { type: gitlab, url: https://gitlab.example.com }
-ci: { provider: jenkins, url: https://jenkins.example.com }
+ci: { provider: jenkins, url: https://jenkins.example.com, component_job_pattern: "{repo}/{component}" }
 codebases:
   - name: platform
     url: git@gitlab.example.com:acme/platform.git
     components:
-      - { name: api, dir: services/api, ci_job: platform/api }
-      - { name: web, dir: apps/web, ci_job: platform/web }
-      - { name: shared, dir: packages/shared }        # no own job: covered by the others
+      - { name: api, dir: services/api }                # → platform/api
+      - { name: web, dir: apps/web }                    # → platform/web
+      - { name: shared, dir: packages/shared, ci_job: platform/api }   # no job of its own: use api's
 ```

@@ -349,6 +349,14 @@
           "format": "uri",
           "description": "jenkins: server URL"
         },
+        "job_pattern": {
+          "type": "string",
+          "description": "jenkins: job path pattern for codebases, e.g. {group}/{repo}. Placeholders: {group} {owner} {repo} {codebase}. ci_job overrides it."
+        },
+        "component_job_pattern": {
+          "type": "string",
+          "description": "jenkins: job path pattern for monorepo components, e.g. {repo}/{component}. Adds {component}."
+        },
         "commands": {
           "type": "object",
           "additionalProperties": false,

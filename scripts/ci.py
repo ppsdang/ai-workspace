@@ -5,6 +5,13 @@
   ci.py --provider jenkins --url URL log     --build BUILD_URL [--tail 200]
   ci.py --provider jenkins --url URL rerun   --job JOB --branch BRANCH
   ci.py --provider custom --status-cmd "..." [--log-cmd "..."] [--rerun-cmd "..."] <op> ...
+  ci.py job --clone-url URL --codebase NAME [--component NAME] [--ci-job JOB]
+            [--pattern "{group}/{repo}"] [--component-pattern "{repo}/{component}"]
+
+job resolves which CI job to use: an explicit --ci-job wins, else the pattern is filled in from the
+clone URL ({group} = full namespace such as "payroll" or "acme/tools", {owner} = its first part,
+{repo} = repository name without .git, {codebase}, {component}). Components use --component-pattern,
+falling back to the codebase's job. Prints the job path, or exits 3 when none can be determined.
 
 status prints the same summary shape as review_threads.py checks:
   {"sha", "state": passed|failed|pending|none, "failed": [{name, id, url}], "pending": [...], "checks": [...]}
@@ -21,6 +28,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import re
 import subprocess
 import sys
 import urllib.parse
@@ -32,6 +40,57 @@ from tracker import TrackerError as CIError, http, need_env, split_command  # no
 
 FAILED = {"FAILURE", "UNSTABLE", "ABORTED", "NOT_BUILT"}
 BUILD_TREE = "builds[number,url,result,building,actions[lastBuiltRevision[SHA1]]]{0,30}"
+
+
+PLACEHOLDERS = ("group", "owner", "repo", "codebase", "component")
+
+
+def parse_clone_url(url: str) -> tuple[str, str]:
+    """(namespace, repo) from ssh, scp-style, https or local-path clone URLs.
+
+    Remote URLs give the full namespace ("acme/tools"); a local folder gives its parent folder's name.
+    """
+    u = url.strip().rstrip("/")
+    if u.endswith(".git"):
+        u = u[:-4]
+    remote = True
+    if "://" in u:
+        path = urllib.parse.urlsplit(u).path
+    elif re.match(r"^([^/@:]+@)?[A-Za-z0-9.-]+:[^/]", u):
+        path = u.split(":", 1)[1]            # scp-style: git@host:group/repo
+    else:
+        path, remote = u, False              # local folder
+    parts = [p for p in path.split("/") if p and p not in (".", "~")]
+    if not parts:
+        raise CIError(f"cannot read a repository name from {url!r}")
+    if remote:
+        return "/".join(parts[:-1]), parts[-1]
+    return (parts[-2] if len(parts) > 1 else ""), parts[-1]
+
+
+def resolve_job(clone_url, codebase, component=None, ci_job=None, pattern=None, component_pattern=None):
+    if ci_job:
+        return ci_job
+    group, repo = parse_clone_url(clone_url) if clone_url else ("", codebase)
+    values = {"group": group, "owner": group.split("/")[0] if group else "", "repo": repo,
+              "codebase": codebase, "component": component or ""}
+
+    def fill(tpl):
+        unknown = set(re.findall(r"\{(\w+)\}", tpl)) - set(PLACEHOLDERS)
+        if unknown:
+            raise CIError(f"unknown placeholder(s) in job pattern: {', '.join(sorted(unknown))}")
+        out = tpl
+        for k, v in values.items():
+            out = out.replace("{" + k + "}", v)
+        return re.sub(r"/{2,}", "/", out).strip("/")
+
+    if component and component_pattern:
+        return fill(component_pattern)
+    if pattern:
+        if "{component}" in pattern and not component:
+            raise CIError("job pattern uses {component} but this codebase has no component")
+        return fill(pattern)
+    return None
 
 
 def summary(sha, checks):
@@ -183,7 +242,31 @@ class Custom:
         return self._run("rerun", codebase=codebase, branch=branch) or "requested"
 
 
+def main_job(argv) -> int:
+    p = argparse.ArgumentParser(prog="ci.py job")
+    p.add_argument("--clone-url", default="")
+    p.add_argument("--codebase", required=True)
+    p.add_argument("--component")
+    p.add_argument("--ci-job", help="explicit ci_job (component's, else codebase's)")
+    p.add_argument("--pattern")
+    p.add_argument("--component-pattern")
+    a = p.parse_args(argv)
+    try:
+        job = resolve_job(a.clone_url, a.codebase, a.component, a.ci_job, a.pattern, a.component_pattern)
+    except CIError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    if not job:
+        print("error: no ci_job and no job pattern; add ci_job or ci.job_pattern to workspace.yaml", file=sys.stderr)
+        return 3
+    print(job)
+    return 0
+
+
 def main(argv=None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "job":
+        return main_job(argv[1:])
     p = argparse.ArgumentParser(description="ai-workspace CI adapter")
     p.add_argument("--provider", required=True, choices=["jenkins", "custom"])
     p.add_argument("--url")

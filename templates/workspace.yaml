@@ -43,7 +43,7 @@ git_host:
 codebases:
   - name: frontend         # folder name under codebase/ (letters, digits, . _ -)
     url: git@gitlab.com:example/shop-frontend.git   # or a local folder, e.g. ~/code/shop-frontend
-    # ci_job: shop/frontend  # Jenkins job path (ci.provider: jenkins)
+    # ci_job: shop/frontend  # Jenkins job path, only when it doesn't follow ci.job_pattern
     # branch: develop       # base branch, overrides git_host.default_branch
     # tdd: when-tests-exist # strict | when-tests-exist | off
   - name: backend
@@ -70,6 +70,8 @@ gates:
 ci:
   provider: host           # host (GitHub Actions / GitLab CI) | jenkins | custom | none
   # url: https://jenkins.example.com                 # jenkins; credentials: JENKINS_USER, JENKINS_TOKEN
+  # job_pattern: "{group}/{repo}"                    # jenkins job per repository, from the clone URL
+  # component_job_pattern: "{repo}/{component}"      # monorepos with a job per component
   # commands:                                        # custom: your own script
   #   status: "./tools/ci status {codebase} {branch} {sha}"
   #   log: "./tools/ci log {build}"

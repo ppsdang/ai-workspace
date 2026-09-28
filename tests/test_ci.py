@@ -110,6 +110,40 @@ class JenkinsTest(unittest.TestCase):
         self.assertIn("JENKINS_USER", r.stderr)
 
 
+class JobPatternTest(unittest.TestCase):
+    def job(self, *args):
+        return subprocess.run([sys.executable, str(CI), "job", *args], capture_output=True, text=True)
+
+    def test_patterns_from_clone_urls(self):
+        cases = [
+            (["--clone-url", "git@gitlab.oodleslab.com:payroll/backend.git", "--codebase", "backend",
+              "--pattern", "{group}/{repo}"], "payroll/backend"),
+            (["--clone-url", "https://gitlab.example.com/acme/tools/cli.git", "--codebase", "cli",
+              "--pattern", "{owner}/{repo}-ci"], "acme/cli-ci"),
+            (["--clone-url", "ssh://git@host:2222/grp/app.git", "--codebase", "app",
+              "--pattern", "builds/{codebase}"], "builds/app"),
+            (["--clone-url", "git@gitlab.example.com:acme/platform.git", "--codebase", "platform",
+              "--component", "api", "--component-pattern", "{repo}/{component}"], "platform/api"),
+        ]
+        for args, expected in cases:
+            with self.subTest(args=args):
+                r = self.job(*args)
+                self.assertEqual((r.returncode, r.stdout.strip()), (0, expected), r.stderr)
+
+    def test_precedence_and_fallbacks(self):
+        base = ["--clone-url", "git@h:payroll/backend.git", "--codebase", "backend", "--pattern", "{group}/{repo}"]
+        self.assertEqual(self.job(*base, "--ci-job", "legacy/backend-build").stdout.strip(), "legacy/backend-build")
+        # a component without a component pattern falls back to the codebase pattern
+        self.assertEqual(self.job(*base, "--component", "api").stdout.strip(), "payroll/backend")
+        r = self.job("--clone-url", "git@h:a/b.git", "--codebase", "b")
+        self.assertEqual(r.returncode, 3)
+        r = self.job("--clone-url", "git@h:a/b.git", "--codebase", "b", "--pattern", "{grup}/{repo}")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("unknown placeholder", r.stderr)
+        r = self.job("--clone-url", "git@h:a/b.git", "--codebase", "b", "--pattern", "{repo}/{component}")
+        self.assertEqual(r.returncode, 1)
+
+
 class CustomCITest(unittest.TestCase):
     def test_word_and_json_status_log_rerun(self):
         with tempfile.TemporaryDirectory() as d:

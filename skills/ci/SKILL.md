@@ -2,7 +2,7 @@
 name: ci
 description: Watch CI for a shipped ai-workspace task (GitHub Actions, GitLab CI, Jenkins or a custom CI) and fix failures caused by the change, within a hard cap of rounds. Use when the user asks to check, watch or fix CI / pipelines / builds / checks for a ticket.
 argument-hint: "<KEY>"
-allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(python3 *review_threads.py*checks*), Bash(python3 *ci.py*status*), Bash(python3 *ci.py*log*), Bash(python3 *scan_secrets.py*), Bash(gh run view*), Bash(glab ci trace*), Bash(git -C * status*), Bash(git -C * diff*), Bash(git -C * log*), Bash(git -C * add *), Bash(git -C * commit *)
+allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(python3 *review_threads.py*checks*), Bash(python3 *ci.py*status*), Bash(python3 *ci.py* job *), Bash(python3 *ci.py*log*), Bash(python3 *scan_secrets.py*), Bash(gh run view*), Bash(glab ci trace*), Bash(git -C * status*), Bash(git -C * diff*), Bash(git -C * log*), Bash(git -C * add *), Bash(git -C * commit *)
 ---
 
 # ai-workspace ci
@@ -17,7 +17,7 @@ say the task hasn't shipped and stop.
 | `ci.provider` | Status and logs via | Needs |
 |---|---|---|
 | `host` (default) | the git host: GitHub Actions / GitLab CI | `gh` or `glab` logged in to the host. Not possible with `git_host.type: other` or without the CLI: say so and stop |
-| `jenkins` | `scripts/ci.py --provider jenkins --url <ci.url>`, job = the component's or codebase's `ci_job` (see below) | `JENKINS_USER`, `JENKINS_TOKEN` |
+| `jenkins` | `scripts/ci.py --provider jenkins --url <ci.url>`, job resolved per CI unit (see below) | `JENKINS_USER`, `JENKINS_TOKEN` |
 | `custom` | `scripts/ci.py --provider custom` with `ci.commands.status/log/rerun` | whatever the team's script needs |
 | `none` | nothing to watch: say tests already ran locally in the task, and stop | |
 
@@ -36,6 +36,17 @@ Limits from `workspace.yaml` → `ci.max_rounds` (default **2**): a round is one
 - a component without `ci_job` falls back to its codebase's `ci_job`; if several affected components
   share one job, check that job once.
 
+**Which job** (Jenkins). Resolve it for each CI unit with the script, never by hand:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ci.py" job --clone-url <codebase url> --codebase <name> \
+  [--component <component>] [--ci-job <component's ci_job, else codebase's ci_job>] \
+  [--pattern "<ci.job_pattern>"] [--component-pattern "<ci.component_job_pattern>"]
+```
+
+An explicit `ci_job` wins; otherwise the patterns are filled in from the clone URL. Exit code 3 means
+no job could be determined: ask the user for it.
+
 All CI units of one codebase build the same branch and commit, so `<branch>` and `<sha>` are the same
 for them. For each CI unit, with `<sha>` = `git -C <repo> rev-parse HEAD`:
 
@@ -50,9 +61,8 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ci.py" --provider custom --status-cmd "<c
 ```
 
 All three print the same summary: `state` (`passed | failed | pending | none`), `failed[]` (name, id,
-url; Jenkins adds `failed_stages`), `pending[]`. For Jenkins, a CI unit without any `ci_job` (neither the
-component nor its codebase) can't be looked up: ask the user for the job path (e.g. `payroll/backend` or
-`platform/api`) and suggest adding `ci_job:` to `workspace.yaml`. Report results per CI unit, and when a
+url; Jenkins adds `failed_stages`), `pending[]`. If Jenkins answers 404 for a resolved job, the pattern
+doesn't fit that repository: tell the user which job path was tried and suggest a `ci_job:` for it. Report results per CI unit, and when a
 component's job fails, fix only within that component unless the log shows the cause elsewhere.
 
 - **pending**: wait without blocking the conversation. Start this with the Bash tool's

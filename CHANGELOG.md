@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-28
+
+### Added
+- Jenkins job name patterns: `ci.job_pattern` (e.g. `{group}/{repo}`) and `ci.component_job_pattern`
+  (e.g. `{repo}/{component}`), filled in from each clone URL, so `ci_job` is only needed for exceptions.
+  An explicit `ci_job` always wins. Resolution is done by `ci.py job` (ssh, scp-style, https and local
+  URLs; unknown placeholders are rejected). init derives the pattern from one example job and shows the
+  resolved job for every repository to confirm.
+
 ## [1.2.0] - 2026-09-28
 
 ### Added

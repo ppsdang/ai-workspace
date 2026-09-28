@@ -2,7 +2,7 @@
 name: init
 description: Set up or refresh an ai-workspace — a multi-repo workspace, a single existing repository, or a monorepo with components. Creates workspace.yaml if missing, clones codebases, detects each stack, and generates profiles, path-scoped rules and workspace instructions. Use when the user wants to initialise a workspace, add a codebase, or refresh stale profiles.
 argument-hint: "[codebase-name ...]"
-allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(bash *clone-repo.sh*), Bash(bash *exclude-local.sh*), Bash(git -C * rev-parse *), Bash(git init), Bash(gh auth status*), Bash(glab auth status*), Bash(command -v *), Bash(mkdir -p *), Bash(date *), Bash(ls *)
+allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(bash *clone-repo.sh*), Bash(python3 *ci.py* job *), Bash(bash *exclude-local.sh*), Bash(git -C * rev-parse *), Bash(git init), Bash(gh auth status*), Bash(glab auth status*), Bash(command -v *), Bash(mkdir -p *), Bash(date *), Bash(ls *)
 ---
 
 # ai-workspace init
@@ -52,9 +52,15 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   If the codebases live on different hosts, say that one `git_host` applies to all and ask which to use.
 - **Asking for CI** (skip for local only, which implies `ci.provider: none`): *What runs your pipelines?*
   **Same as the git host** (GitHub Actions / GitLab CI) → `host`; **Jenkins** → `jenkins`, ask for its URL
-  (`ci.url`) and each codebase's job path (`ci_job`, e.g. `payroll/backend`). For a monorepo, ask whether
-  each component has its own job; if so, record `ci_job` on each component (e.g. `platform/api`) and keep
-  the codebase's `ci_job` only for a shared job, if there is one; **Other** (TeamCity, Bamboo,
+  (`ci.url`), then work out the job names with as few questions as possible:
+  1. Ask for the Jenkins job path of **one** repository (e.g. `payroll/backend`) and compare it with that
+     repository's clone URL to propose `ci.job_pattern`: typically `{group}/{repo}` (placeholders:
+     `{group}` full namespace, `{owner}` its first part, `{repo}`, `{codebase}`). For a monorepo with a job
+     per component, propose `ci.component_job_pattern` the same way (e.g. `{repo}/{component}`).
+  2. Resolve every codebase and component with `ci.py job` (see the ci skill) and show the resulting
+     list: "backend → payroll/backend, frontend → payroll/frontend, …". Ask which ones are wrong.
+  3. Record `ci_job:` only for those exceptions (on the codebase or component). If names follow no
+     pattern at all, fall back to one `ci_job` per codebase; **Other** (TeamCity, Bamboo,
   Azure Pipelines, …) → `custom`, explain that a small script supplies `ci.commands.status/log/rerun`
   (see `${CLAUDE_PLUGIN_ROOT}/docs/configuration.md`); **None** → `none`.
 - Validate: `version: 1`; `mode` is multi or single (single: exactly one codebase with `path: "."`, no
