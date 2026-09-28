@@ -28,6 +28,14 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   name, tracker (jira / github / trello / markdown / custom / none, plus that type's fields and the
   `statuses.start` / `statuses.review` names), git host (github / gitlab) and the codebases
   (name + clone URL, optional base branch). Show the file and get confirmation before writing it.
+- **Asking for the tracker.** AskUserQuestion shows at most 4 options, and there are 6 tracker types, so
+  never drop one. Ask in two steps:
+  1. *Where are your tasks?* **Jira** / **GitHub Issues** / **Trello** / **Something else**
+     (markdown files, an in-house tracker, or none).
+  2. Only if *Something else*: **Markdown task files** / **In-house or other tracker** (custom: a
+     script or MCP server) / **No tracker** (describe tasks in the command).
+  Then ask only for the chosen type's fields (see `${CLAUDE_PLUGIN_ROOT}/skills/task/references/trackers.md`)
+  and its `statuses.start` / `statuses.review` names.
 - Validate: `version: 1`; `mode` is multi or single (single: exactly one codebase with `path: "."`, no
   `url` needed); codebase and component names unique and matching `^[A-Za-z0-9._-]+$`; in multi mode every
   codebase has a `url`; component `dir`s exist after cloning and stay inside the repository.

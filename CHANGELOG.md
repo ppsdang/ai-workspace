@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-28
+
+### Fixed
+- `/ai-workspace:init` asks for the tracker in two steps (Jira / GitHub Issues / Trello / Something
+  else → markdown, in-house, none). The question prompt holds only four options, so Trello and others
+  could previously be left out.
+
 ## [1.0.0] - 2026-09-28
 
 First public release.
