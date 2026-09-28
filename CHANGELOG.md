@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-09-28
+
+### Changed
+- `init` no longer asks where the code is hosted when the links already show it: `github.com`, `gitlab.com`,
+  hosts named like `gitlab.*` / `github.*` and known services are recognised. It asks only for a server
+  whose name doesn't reveal its type, for links to several servers, or for folders on disk. "Keep
+  everything local" is available as a change in the final summary.
+- Pipelines are no longer asked before cloning: they're detected from the repositories (`Jenkinsfile`,
+  `.gitlab-ci.yml`, `.github/workflows/`, …). For Jenkins, only its address is asked.
+
 ## [1.7.0] - 2026-09-28
 
 ### Added

@@ -96,12 +96,14 @@ It asks you a few questions:
 |---|---|
 | Name of the workspace | proposes the folder name; just confirm |
 | Your repositories (several-repo case) | paste the links, one or many, in any format: `git@gitlab.acme.com:payroll/backend.git, https://gitlab.acme.com/payroll/frontend.git`. Names come from the links; a folder on disk works too |
-| Where your code is hosted | pre-selected from the links: **GitHub**, **Another git server** (GitLab, self-hosted GitLab, Bitbucket, …) or **Local only** |
 | Where your tasks are | **Jira** (site, project, two status names), **GitHub Issues**, **Trello**, or **somewhere else**: task files, your company's own tool, or none |
-| What runs your pipelines | the git host's own CI, **Jenkins** (just its address here), something else, or none |
 | The product, in your words (optional) | "Payroll for small companies: HR runs monthly payroll, employees download payslips and tax forms." Plus links or paths to existing docs |
 
-You confirm a plain-language summary, then it downloads the repositories, works out each one's
+Where your code is hosted is **read from the links** (e.g. `gitlab.yourcompany.com` → self-hosted GitLab),
+and pipelines are **detected from the repositories** (`Jenkinsfile`, `.gitlab-ci.yml`, …), so neither is
+asked; for Jenkins only its address is. It asks only when the links or files can't tell.
+
+You confirm a plain-language summary (where you can also choose to keep everything local), then it downloads the repositories, works out each one's
 language, framework and test commands, asks the questions that need the code (monorepo parts, Jenkins
 job names), and **studies the application** to write the first knowledge documents (see
 [What it knows about your product](#5-what-it-knows-about-your-product)). **Approve the prompts** it

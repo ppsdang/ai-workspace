@@ -35,6 +35,8 @@ in it and ask only what is missing or empty, then continue with the steps that w
 - A follow-up that narrows an earlier answer **continues that question**: same header, and say what
   the user picked. If a free-text answer already settles it, map it and skip the follow-up.
 - Never throw answers away: if something can't be answered now, save the rest and say how to finish.
+- Don't show this skill's question numbers (Q1, Q3, …) to the user; questions that are derived are
+  skipped, so the numbers would look like gaps. Use short plain headings ("Repositories", "Tasks").
 
 ### Q1. Mode (only if the current folder is a git repository)
 *"This folder is a git repository. Set up the workspace for it alone?"* **This repository only** →
@@ -68,18 +70,24 @@ repositories** (your answers so far are saved; run `bash "${CLAUDE_PLUGIN_ROOT}/
 
 Base branches are not asked: they are read from each clone in step 2.
 
-### Q4. Code hosting
-Take the hostname from the links (`git@gitlab.example.com:group/app.git` → `gitlab.example.com`) and
-ask *"Where is your code hosted?"*, pre-selecting what the links suggest:
-1. **GitHub** (github.com or GitHub Enterprise) → `type: github`; `url: https://<host>` for Enterprise.
-2. **Another git server** (GitLab, self-hosted GitLab, Bitbucket, Gitea, Azure DevOps, …) → if the
-   hostname contains `gitlab`, or the user confirms (continuation: *"Is `<host>` a GitLab server?"*),
-   `type: gitlab`, because GitLab opens MRs from `git push`; otherwise `type: other` (pushes, then a link
-   to open the PR). Set `url: https://<host>` unless it is gitlab.com; ask for the web address only if it
-   can't be derived.
-3. **Nowhere, local only** → `type: none`: nothing is ever pushed.
-Repositories on several hosts: one host setting applies to all; ask which one. No links (repositories
-later): ask the same question without a pre-selection.
+### Q4. Code hosting — derived from the links, not asked
+**Don't ask what the links already say.** Take the hostname from each link
+(`git@gitlab.example.com:group/app.git` → `gitlab.example.com`) and set `git_host` directly:
+
+| Links point to | Set | Ask? |
+|---|---|---|
+| `github.com` | `type: github` | no |
+| `gitlab.com` | `type: gitlab` | no |
+| a host whose name contains `gitlab` (e.g. `gitlab.example.com`) | `type: gitlab`, `url: https://<host>` (GitLab opens MRs from `git push`) | no |
+| a host whose name contains `github` (GitHub Enterprise) | `type: github`, `url: https://<host>` | no |
+| `bitbucket.org`, `dev.azure.com`, `codeberg.org` and other known non-GitLab hosts | `type: other`, `url:` its web address | no |
+| a host whose name doesn't show its type (e.g. `git.example.com`) | ask once: *"What kind of server is `git.example.com`?"* **GitLab** / **GitHub Enterprise** / **Something else** | yes |
+| several different hosts | ask which one to use for MRs (one host setting applies to all) | yes |
+| only folders on disk, or no links yet | ask: *"Should finished work be pushed to a git server?"* **Yes, to GitHub** / **Yes, to another server** (ask its address) / **No, keep everything local** → `type: none` | yes |
+
+State the result in the Q7 summary ("Code on self-hosted GitLab at gitlab.example.com; merge requests
+open when a branch is pushed"), where the user can still change it, including to "keep everything
+local" (`type: none`: nothing is ever pushed).
 
 ### Q5. Tasks
 1. *"Where do you keep your tasks?"* **Jira** / **GitHub Issues** / **Trello** / **Somewhere else**
@@ -102,18 +110,9 @@ Then ask only what can't be derived, in plain words:
 
 Offer only these trackers; don't suggest others (for example GitLab issues) that have no adapter.
 
-### Q6. Pipelines (skip for local only → `ci.provider: none`)
-*"What runs your pipelines?"* Offer only choices that work with the host from Q4:
-- GitHub or GitLab: **GitHub Actions** / **GitLab CI** (whichever matches, → `host`) / **Jenkins** /
-  **Something else** / **None**. That's four options: the host's own CI, Jenkins, something else, none.
-- Another git server that isn't GitLab: **Jenkins** / **Something else** / **None** (its own pipelines
-  can't be read).
-
-**Jenkins** → ask only its address now (`ci.url`); job names come in step 3b, after cloning, when the
-repositories and any monorepo parts are known. **Something else** (TeamCity, Bamboo, Azure Pipelines, …)
-→ `custom`, continuing: *"Is a script for it available?"* **Yes** (ask for its status / log / rerun
-commands) / **Not yet** (save `provider: custom` without commands = not connected; `/ai-workspace:ci`
-explains this until it exists). **None** → `none`.
+### Q6. Pipelines — detected after cloning, not asked
+Nothing to ask now: pipelines are detected from the repositories in step 3b. With `git_host.type: none`
+set `ci.provider: none`. In the Q7 summary say "Pipelines: detected after cloning".
 
 ### Q6b. The product, in your words — plain text, optional
 *"In a few sentences: what does this product do, who uses it, and what are the main things they do
@@ -191,6 +190,19 @@ first propose components to the user. Give each subagent this brief with `<path>
 ## 3b. Questions that need the repositories
 
 Ask these only now, when the repositories are cloned and analysed. Save each answer to `workspace.yaml`.
+
+0. **Pipelines — detected, then confirmed only if needed.** Look for CI files in each clone:
+   `Jenkinsfile` → Jenkins; `.gitlab-ci.yml` → GitLab CI; `.github/workflows/*.yml` → GitHub Actions;
+   `azure-pipelines.yml`, `bitbucket-pipelines.yml`, `.circleci/`, `.drone.yml`, `.teamcity/` → another CI.
+   - The host's own CI (GitLab CI on a GitLab host, GitHub Actions on GitHub) → `ci.provider: host`; no question.
+   - Jenkins → `ci.provider: jenkins`; ask only for the Jenkins address (plain text), then the job names below.
+   - Another CI → `ci.provider: custom` (not connected yet); say `/ai-workspace:ci` needs a small script
+     for it, and offer to write one from its API documentation.
+   - No CI files → `ci.provider: none`; say "No pipelines found; tell me if they run elsewhere (e.g. a
+     Jenkins job configured outside the repositories)" and ask only if the user answers.
+   - Different CIs in different repositories: ask which one `/ai-workspace:ci` should watch.
+   With `git_host.type: other` (e.g. Bitbucket), its own pipelines can't be read: treat them like
+   "another CI".
 
 1. **Monorepo parts.** If a repository looks like a monorepo (see step 3), continue: *"`platform` contains
    several apps: services/api, apps/web, packages/shared. Treat them as separate parts?"* **Yes** /
