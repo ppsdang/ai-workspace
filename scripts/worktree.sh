@@ -24,15 +24,22 @@ case "$op" in
       echo "reused: $dest ($branch)"; exit 0
     fi
     [[ -e "$dest" ]] && die "$dest exists but is not a worktree"
-    git -C "$clone" fetch --quiet origin "$base" || die "could not fetch origin/$base"
+    # Local-only repositories (no origin remote) branch from the local base branch.
+    if git -C "$clone" remote get-url origin >/dev/null 2>&1; then
+      git -C "$clone" fetch --quiet origin "$base" || die "could not fetch origin/$base"
+      start="origin/$base"
+    else
+      git -C "$clone" show-ref --verify --quiet "refs/heads/$base" || die "no local branch '$base'"
+      start="$base"
+    fi
     mkdir -p "$(dirname "$dest")"
     dest_abs="$(cd "$(dirname "$dest")" && pwd -P)/$(basename "$dest")"
     if git -C "$clone" show-ref --verify --quiet "refs/heads/$branch"; then
       git -C "$clone" worktree add --quiet "$dest_abs" "$branch" || die "worktree add failed"
     else
-      git -C "$clone" worktree add --quiet --no-track -b "$branch" "$dest_abs" "origin/$base" || die "worktree add failed"
+      git -C "$clone" worktree add --quiet --no-track -b "$branch" "$dest_abs" "$start" || die "worktree add failed"
     fi
-    echo "created: $dest ($branch from origin/$base)"
+    echo "created: $dest ($branch from $start)"
     ;;
   remove)
     [[ $# -eq 3 ]] || die "usage: $0 remove <clone_dir> <dest_dir>"
@@ -40,6 +47,13 @@ case "$op" in
     [[ -e "$dest/.git" ]] || die "$dest is not a worktree"
     [[ -z "$(git -C "$dest" status --porcelain)" ]] || die "$dest has uncommitted changes; not removing"
     branch="$(git -C "$dest" rev-parse --abbrev-ref HEAD)"
+    if ! git -C "$clone" remote get-url origin >/dev/null 2>&1; then
+      # Local only: the branch stays in the clone after removal, so nothing is lost.
+      git -C "$clone" worktree remove "$dest" || die "worktree remove failed"
+      git -C "$clone" worktree prune
+      echo "removed: $dest (local branch $branch kept)"
+      exit 0
+    fi
     if upstream="$(git -C "$dest" rev-parse --abbrev-ref '@{u}' 2>/dev/null)"; then
       ahead="$(git -C "$dest" rev-list --count "$upstream..HEAD")"
       [[ "$ahead" == 0 ]] || die "$branch has $ahead unpushed commit(s); not removing"

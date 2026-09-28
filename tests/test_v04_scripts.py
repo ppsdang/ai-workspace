@@ -179,6 +179,31 @@ class DoctorTest(unittest.TestCase):
             self.assertRegex(r.stdout, r"WARN\s+env TRELLO_API_KEY\s+not set")
             self.assertRegex(r.stdout, r"OK\s+env TRELLO_TOKEN\s+set\n")  # value never printed
 
+    def test_self_hosted_and_other_hosts(self):
+        env = {**os.environ, "PATH": "/nonexistent"}  # no gh/glab available
+        with tempfile.TemporaryDirectory() as d:
+            r = subprocess.run([sys.executable, str(SCRIPTS / "doctor.py"), "--root", d, "--host", "gitlab",
+                                "--host-url", "https://gitlab.example.com"], capture_output=True, text=True, env=env)
+            self.assertRegex(r.stdout, r"WARN\s+glab\s+not installed; MRs can still be opened via git push options")
+            self.assertIn("glab auth login --hostname gitlab.example.com", r.stdout)
+            r = subprocess.run([sys.executable, str(SCRIPTS / "doctor.py"), "--root", d, "--host", "other"],
+                               capture_output=True, text=True, env=env)
+            self.assertIn("opened by hand", r.stdout)
+
+    def test_ci_and_local_only(self):
+        env = {**os.environ, "JENKINS_USER": "", "JENKINS_TOKEN": ""}
+        with tempfile.TemporaryDirectory() as d:
+            run = lambda *a: subprocess.run([sys.executable, str(SCRIPTS / "doctor.py"), "--root", d, *a],
+                                            capture_output=True, text=True, env=env).stdout
+            self.assertRegex(run("--ci", "jenkins"), r"WARN\s+env JENKINS_TOKEN\s+not set")
+            Path(d, "workspace.yaml").write_text("version: 1\n")
+            repo = Path(d, "codebase", "api")
+            repo.mkdir(parents=True)
+            git("init", "-q", cwd=repo)
+            out = run("--host", "none", "--codebases", "api")
+            self.assertRegex(out, r"OK\s+git host\s+local only")
+            self.assertRegex(out, r"OK\s+codebase api\s+present, local only")
+
 
 if __name__ == "__main__":
     unittest.main()

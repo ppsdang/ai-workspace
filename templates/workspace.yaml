@@ -30,16 +30,20 @@ tracker:
   # type: custom    via: mcp   mcp_server: my-tracker
   # type: none                                         paste tasks as text
 
-# Where code is hosted. type: github | gitlab
+# Where code is hosted. type: github | gitlab | other | none
+#   github: github.com or GitHub Enterprise (url:)      gitlab: gitlab.com or self-hosted (url:)
+#   other:  Bitbucket, Gitea, ... (you open the PR)     none:   local only, nothing is pushed
 git_host:
   type: gitlab
+  # url: https://gitlab.example.com   # self-hosted GitLab, GitHub Enterprise, or any other host
   default_branch: main
   draft: false             # open MRs/PRs as drafts
   sync: rebase             # rebase | merge: how to catch up with a moved base branch before shipping
 
 codebases:
   - name: frontend         # folder name under codebase/ (letters, digits, . _ -)
-    url: git@gitlab.com:example/shop-frontend.git
+    url: git@gitlab.com:example/shop-frontend.git   # or a local folder, e.g. ~/code/shop-frontend
+    # ci_job: shop/frontend  # Jenkins job path (ci.provider: jenkins)
     # branch: develop       # base branch, overrides git_host.default_branch
     # tdd: when-tests-exist # strict | when-tests-exist | off
   - name: backend
@@ -64,6 +68,12 @@ gates:
   quick_fix: end           # end = one approval before shipping; both = plan approval too
 
 ci:
+  provider: host           # host (GitHub Actions / GitLab CI) | jenkins | custom | none
+  # url: https://jenkins.example.com                 # jenkins; credentials: JENKINS_USER, JENKINS_TOKEN
+  # commands:                                        # custom: your own script
+  #   status: "./tools/ci status {codebase} {branch} {sha}"
+  #   log: "./tools/ci log {build}"
+  #   rerun: "./tools/ci rerun {codebase} {branch}"
   max_rounds: 2            # CI-fix pushes per task before handing over to a human
 
 guard:

@@ -39,6 +39,9 @@ the team's diffs unless the team decides to commit them.
     created by `scripts/worktree.sh`. Tasks can run in parallel (for example in separate Claude sessions),
     and the main clone stays on its base branch.
 
+**Local only** (`git_host.type: none`): codebases may have no remote at all. Branches, worktrees and
+comparisons then use the local base branch instead of `origin/<base>` (the skill calls this `<base-ref>`).
+
 ## Commands
 
 Always address a checkout explicitly, never by changing the shell's directory:

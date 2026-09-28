@@ -2,7 +2,7 @@
 name: init
 description: Set up or refresh an ai-workspace — a multi-repo workspace, a single existing repository, or a monorepo with components. Creates workspace.yaml if missing, clones codebases, detects each stack, and generates profiles, path-scoped rules and workspace instructions. Use when the user wants to initialise a workspace, add a codebase, or refresh stale profiles.
 argument-hint: "[codebase-name ...]"
-allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(bash *clone-repo.sh*), Bash(bash *exclude-local.sh*), Bash(git -C * rev-parse *), Bash(git init), Bash(gh auth status), Bash(glab auth status), Bash(command -v *), Bash(mkdir -p *), Bash(date *), Bash(ls *)
+allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(bash *clone-repo.sh*), Bash(bash *exclude-local.sh*), Bash(git -C * rev-parse *), Bash(git init), Bash(gh auth status*), Bash(glab auth status*), Bash(command -v *), Bash(mkdir -p *), Bash(date *), Bash(ls *)
 ---
 
 # ai-workspace init
@@ -35,7 +35,26 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   2. Only if *Something else*: **Markdown task files** / **In-house or other tracker** (custom: a
      script or MCP server) / **No tracker** (describe tasks in the command).
   Then ask only for the chosen type's fields (see `${CLAUDE_PLUGIN_ROOT}/skills/task/references/trackers.md`)
-  and its `statuses.start` / `statuses.review` names.
+  and its `statuses.start` / `statuses.review` names. Offer only these tracker types; don't suggest
+  others (for example GitLab issues) that have no adapter.
+- **Asking for the git host.** Ask for the codebases' clone URLs first (in multi mode a `url` may also be
+  a local folder, which is then cloned into `codebase/<name>`). Take the hostname from them
+  (`git@gitlab.example.com:group/app.git` → `gitlab.example.com`), then ask *Where is your code hosted?*,
+  pre-selecting what the URLs suggest:
+  1. **GitHub**: github.com, or GitHub Enterprise → `type: github` (+ `url: https://<host>` for Enterprise).
+  2. **Other git server**: GitLab, self-hosted GitLab, Bitbucket, Gitea, Azure DevOps, … Ask for the
+     server's web address if it can't be derived. If it's GitLab (the hostname contains `gitlab`, or the
+     user confirms when asked "Is this a GitLab server?"), use `type: gitlab`, because GitLab can open MRs
+     from `git push`; otherwise `type: other` (the flow pushes and gives a link to open the PR). Set `url:`
+     for anything that isn't gitlab.com.
+  3. **Nowhere, local only** → `type: none`: nothing is ever pushed; finished work stays on a local branch
+     or is merged locally.
+  If the codebases live on different hosts, say that one `git_host` applies to all and ask which to use.
+- **Asking for CI** (skip for local only, which implies `ci.provider: none`): *What runs your pipelines?*
+  **Same as the git host** (GitHub Actions / GitLab CI) → `host`; **Jenkins** → `jenkins`, ask for its URL
+  (`ci.url`) and each codebase's job path (`ci_job`, e.g. `payroll/backend`); **Other** (TeamCity, Bamboo,
+  Azure Pipelines, …) → `custom`, explain that a small script supplies `ci.commands.status/log/rerun`
+  (see `${CLAUDE_PLUGIN_ROOT}/docs/configuration.md`); **None** → `none`.
 - Validate: `version: 1`; `mode` is multi or single (single: exactly one codebase with `path: "."`, no
   `url` needed); codebase and component names unique and matching `^[A-Za-z0-9._-]+$`; in multi mode every
   codebase has a `url`; component `dir`s exist after cloning and stay inside the repository.
@@ -45,7 +64,11 @@ that still has the marker.** If a file exists without it, the user owns it: leav
 - Check the tracker is reachable without printing secrets: for jira (via: api) and trello, that the env vars
   exist (`JIRA_API_TOKEN`, `TRELLO_API_KEY`, `TRELLO_TOKEN`); for github, `gh auth status`; for markdown,
   that the folder exists; for mcp, that the server is connected. Report problems as warnings only.
-- Check the git host CLI is installed (`gh` or `glab`); warn if it isn't, since shipping needs it.
+- For `ci.provider: jenkins`, check that `JENKINS_USER` and `JENKINS_TOKEN` exist (never print them).
+- Check the git host CLI (skip for local only): `gh` for GitHub, `glab` for GitLab, logged in to the right host
+  (`gh auth status --hostname <host>` / `glab auth status --hostname <host>`). If `glab` is missing, say
+  that MRs can still be opened through git push options, and that `glab` adds descriptions, CI and review
+  follow-up (`brew install glab`, then `glab auth login --hostname <host>`). Warnings only.
 
 ## 2. Clone
 

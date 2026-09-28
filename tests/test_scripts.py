@@ -148,6 +148,22 @@ class WorktreeTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertFalse(self.dest.exists())
 
+    def test_local_only_repository(self):
+        local = self.root / "local"
+        git("init", "-q", "-b", "main", str(local), cwd=self.root)
+        git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "i", cwd=local)
+        dest = self.root / "ws" / "work" / "T-2" / "local"
+        r = self.wt("add", local, dest, "fix/T-2", "main")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("from main", r.stdout)
+        (dest / "f.txt").write_text("x")
+        git("add", "f.txt", cwd=dest)
+        git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "f", cwd=dest)
+        r = self.wt("remove", local, dest)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        branches = subprocess.run(["git", "-C", local, "branch"], capture_output=True, text=True).stdout
+        self.assertIn("fix/T-2", branches)
+
     def test_rejects_bad_arguments(self):
         self.assertEqual(self.wt("add", self.clone, self.dest, "--evil", "main").returncode, 1)
         self.assertEqual(self.wt("add", self.clone, self.dest, "bad..name", "main").returncode, 1)

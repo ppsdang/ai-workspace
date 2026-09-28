@@ -13,7 +13,9 @@ suggest `/ai-workspace:init`.
 
 **Paths.** Read `${CLAUDE_SKILL_DIR}/references/layout.md` first. Below, `<clone>` is a codebase's main
 checkout, `<repo>` the task checkout where the branch lives (the same folder unless `worktrees: true`),
-and a *unit* is a codebase or, in a monorepo, one of its components.
+and a *unit* is a codebase or, in a monorepo, one of its components. `<base-ref>` is `origin/<base>` when
+the codebase has an `origin` remote (after `git -C <repo> fetch origin`), and the local `<base>` branch
+when it has none (`git -C <repo> remote get-url origin` fails).
 
 ## Ground rules
 
@@ -152,8 +154,8 @@ has no dependencies installed.
 1. `git -C <repo> status --porcelain`. If there are uncommitted changes, stop and ask the user.
    Never stash or discard them yourself. If `<clone>` is already on another task's branch, say so
    and suggest `worktrees: true` for parallel tasks.
-2. `git -C <repo> fetch origin`, then create the branch from `origin/<base>`:
-   `git -C <repo> switch --no-track -c <branch> origin/<base>`.
+2. Fetch (if there is a remote), then create the branch from `<base-ref>`:
+   `git -C <repo> switch --no-track -c <branch> <base-ref>`.
    `--no-track` matters: otherwise the branch tracks `<base>` and a plain `git push` could target it.
    If the branch already exists (resume), switch to it instead.
 
@@ -199,27 +201,31 @@ codebases, then review again. After 2 rounds with blocking findings left, bring 
 Run for every affected codebase; set `phase: pre-ship`.
 
 1. **Base drift.** `git -C <repo> fetch origin`, then check
-   `git -C <repo> merge-base --is-ancestor origin/<base> HEAD`. If the base moved on:
-   - The branch is not pushed yet, so rebase it: `git -C <repo> rebase origin/<base>`
+   `git -C <repo> merge-base --is-ancestor <base-ref> HEAD`. If the base moved on:
+   - The branch is not pushed yet, so rebase it: `git -C <repo> rebase <base-ref>`
      (use `merge` instead if `git_host.sync: merge`, or if the branch was already pushed).
    - On conflicts, resolve them when the resolution is mechanical and clearly correct (imports, adjacent
      edits). Otherwise run `git -C <repo> rebase --abort` (or `git -C <repo> merge --abort`), set `phase: blocked`, and ask the user.
    - If anything was rebased or merged, re-run the test-runner for that codebase.
-2. **Secrets scan.** `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scan_secrets.py" <repo> origin/<base>`.
+2. **Secrets scan.** `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scan_secrets.py" <repo> <base-ref>`.
    On findings, remove the secret from the code, and because the branch is unpushed, also from its
-   history: `git -C <repo> reset --soft origin/<base>` and recommit. Tell the user to rotate any
+   history: `git -C <repo> reset --soft <base-ref>` and recommit. Tell the user to rotate any
    credential that looks real. Never mark a finding as allowed yourself; ask the user. Gate 2 cannot be
    offered while findings remain.
 
 ## Phase 10: Gate 2 → ship
 
 Read `${CLAUDE_SKILL_DIR}/references/ship.md`. Prepare, **without executing**:
-- per codebase: `git diff --stat origin/<base>...HEAD`, the commit list, and the MR/PR title and body;
+- per codebase: `git diff --stat <base-ref>...HEAD`, the commit list, and the MR/PR title and body;
 - the ticket comment (summary, MR links placeholder, test evidence, review verdict) and the target
   status from `tracker.statuses.review`.
 
 **Gate 2:** Show all of it (review verdict, test summary, non-blocking findings) and ask:
 *Ship it (push + MRs + ticket update)* / *Push and open MRs only* / *Make changes* / *Stop here (keep local)*.
+
+**Local only** (`git_host.type: none`): nothing is pushed, so there are no MR bodies to prepare. Ask
+instead: *Keep the branch* / *Merge into my local `<base>`* / *Make changes* / *Stop*, plus a yes/no
+for the ticket update if a tracker is configured. Then follow the "Local only" section of `ship.md`.
 
 For a quick fix (single gate), include `plan.md`'s summary and the criteria map in Gate 2.
 

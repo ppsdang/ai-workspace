@@ -21,7 +21,7 @@ Secrets never go in this file. Trackers read tokens from environment variables (
 | `branching.pattern` | string | `{type}/{key}-{slug}` | Branch name pattern; `type` is feature, fix or chore |
 | `protected_branches` | list | `[main, master, develop, release/*]` | Never pushed to (glob patterns, case-insensitive) |
 | `gates.quick_fix` | `end` \| `both` | `end` | Quick fixes get one approval before shipping (`end`), or plan approval too (`both`) |
-| `ci.max_rounds` | int | `2` | CI-fix pushes per task before `/ai-workspace:ci` hands over to a human |
+| `ci` | object | `provider: host` | Pipelines; see below |
 | `guard.confirm_outward` | bool | `true` | Ask before every push, MR/PR and tracker update. Destructive operations are denied either way |
 
 ## `tracker`
@@ -46,17 +46,32 @@ comments[]`) or plain markdown. See [trackers.md](../skills/task/references/trac
 
 | Key | Values | Default | Meaning |
 |---|---|---|---|
-| `type` | `github` \| `gitlab` | | Uses `gh` or `glab` (self-hosted GitLab supported) |
+| `type` | `github` \| `gitlab` \| `other` \| `none` | | `github` uses `gh` (or gives you a link if it's missing); `gitlab` uses `glab`, or git push options when `glab` isn't installed; `other` (Bitbucket, Gitea, Azure DevOps, …) pushes and gives you the link to open the PR; `none` is local only: nothing is pushed, finished work stays on a branch or is merged locally |
+| `url` | URL | | Web address for self-hosted GitLab, GitHub Enterprise or other hosts, e.g. `https://gitlab.example.com` |
 | `default_branch` | string | `main` | Base branch unless a codebase sets `branch` |
 | `draft` | bool | `false` | Open MRs/PRs as drafts |
 | `sync` | `rebase` \| `merge` | `rebase` | How a branch catches up when the base moved before shipping |
+
+## `ci`
+
+| Key | Values | Default | Meaning |
+|---|---|---|---|
+| `provider` | `host` \| `jenkins` \| `custom` \| `none` | `host` | `host`: GitHub Actions / GitLab CI through `gh`/`glab`. `jenkins`: any Jenkins server. `custom`: your own script (TeamCity, Bamboo, Azure Pipelines, …). `none`: no pipeline; tests still run locally in every task |
+| `url` | URL | | Jenkins server, e.g. `https://jenkins.example.com`. Credentials: `JENKINS_USER` and `JENKINS_TOKEN` (a Jenkins API token) in your shell profile |
+| `commands.status` / `.log` / `.rerun` | command templates | | `custom`: `{codebase}`, `{branch}`, `{sha}`, `{build}` are filled in. `status` prints `passed`, `failed` or `pending` (or summary JSON); `log` prints the build log |
+| `max_rounds` | int | `2` | CI-fix pushes per task before `/ai-workspace:ci` hands over to a human |
+
+For Jenkins, each codebase names its job with `ci_job` (the path shown in Jenkins, e.g.
+`payroll/backend`). Multibranch pipelines and single jobs are both supported: builds are matched to the
+branch and commit.
 
 ## `codebases[]`
 
 | Key | Meaning |
 |---|---|
 | `name` | Folder name under `codebase/` and the name used everywhere (letters, digits, `.`, `_`, `-`) |
-| `url` | Clone URL (multi mode) |
+| `url` | Clone URL, or a local folder to copy from (multi mode) |
+| `ci_job` | Jenkins job path for this codebase |
 | `path` | Single mode only: `"."` (the repository itself) |
 | `branch` | Base branch for this codebase |
 | `tdd` | `strict` \| `when-tests-exist` (default) \| `off` |
@@ -114,4 +129,28 @@ codebases:
       - { name: api, dir: services/api }
       - { name: web, dir: apps/web }
       - { name: shared, dir: packages/shared }
+```
+
+**Local only, Jenkins-free, markdown tasks:**
+
+```yaml
+version: 1
+mode: single
+tracker: { type: markdown, path: backlog }
+git_host: { type: none }
+ci: { provider: none }
+codebases:
+  - { name: app, path: "." }
+```
+
+**Self-hosted GitLab with Jenkins:**
+
+```yaml
+version: 1
+tracker: { type: jira, base_url: https://example.atlassian.net, project: PAY }
+git_host: { type: gitlab, url: https://gitlab.example.com }
+ci: { provider: jenkins, url: https://jenkins.example.com }
+codebases:
+  - { name: backend, url: git@gitlab.example.com:payroll/backend.git, ci_job: payroll/backend }
+  - { name: frontend, url: git@gitlab.example.com:payroll/frontend.git, ci_job: payroll/frontend }
 ```

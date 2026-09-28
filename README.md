@@ -8,15 +8,16 @@ are affected, shows you a plan, writes the code and tests, has the work reviewed
 request per repository. It stops for your approval before it starts coding and before it pushes.
 
 Works with any language, Jira / GitHub Issues / Trello / markdown task files / your own tracker, and
-GitHub or GitLab.
+GitHub, GitLab (including self-hosted, e.g. `gitlab.yourcompany.com`) or any other git host, with
+GitHub Actions, GitLab CI, Jenkins or your own CI, or entirely on your machine with nothing pushed.
 
 ---
 
 ## 1. Install
 
-You need [Claude Code](https://claude.com/claude-code), `git`, `python3` (3.10 or newer) and the CLI for
-your git host: [`gh`](https://cli.github.com) for GitHub or [`glab`](https://gitlab.com/gitlab-org/cli)
-for GitLab, logged in (`gh auth login` / `glab auth login`).
+You need [Claude Code](https://claude.com/claude-code), `git` and `python3` (3.10 or newer). That's
+enough for everything, local only or with pushing. Extra tools only add automation (see
+[Choose your setup](#choose-your-setup)).
 
 In Claude Code:
 
@@ -28,6 +29,16 @@ In Claude Code:
 > The repository is private for now: you need read access to it on GitHub for this to work.
 
 To update later: `/plugin marketplace update ai-workspace`.
+
+### Choose your setup
+
+Every outside service is optional. Pick one line per row; `/ai-workspace:init` asks you the same questions.
+
+| | Nothing extra | With a login or token |
+|---|---|---|
+| **Code** | **Local only**: nothing is pushed; keep the branch or merge it into your local `main`. **Or push with plain `git`**: on GitLab (including self-hosted) the MR opens automatically from the push; on GitHub and other hosts you get a link to open the PR | [`gh`](https://cli.github.com) (GitHub, Enterprise: `gh auth login --hostname …`) or [`glab`](https://gitlab.com/gitlab-org/cli) (GitLab, self-hosted: `glab auth login --hostname gitlab.yourcompany.com`) add full MR descriptions, linked MRs and review-comment handling |
+| **Pipelines** | **None**: tests always run on your machine during a task | GitHub Actions / GitLab CI (through `gh`/`glab`), **Jenkins** (`JENKINS_USER` + `JENKINS_TOKEN`), or any other CI through a small script |
+| **Tasks** | Describe the task in the command, or use markdown task files | Jira, GitHub Issues, Trello, or your own tracker (see [section 5](#5-connect-your-tracker)) |
 
 ## 2. Try it first (optional, 5 minutes)
 
@@ -71,8 +82,9 @@ It asks you a few questions:
 | Name of the workspace | Payroll |
 | Where your tasks are | Jira, `https://acme.atlassian.net`, project `PAY` |
 | Status names to use | "In Progress" when work starts, "In Review" when MRs are open |
-| Git host | GitLab |
-| Your repositories (several-repo case) | `backend  git@gitlab.acme.com:payroll/backend.git`, `frontend  …` |
+| Where your code is hosted | **GitHub**, **Other git server** (GitLab, self-hosted GitLab such as `https://gitlab.yourcompany.com`, Bitbucket, …), or **Local only** |
+| What runs your pipelines | the same as the host, **Jenkins** (e.g. `https://jenkins.yourcompany.com` and a job per repo), other, or none |
+| Your repositories (several-repo case) | `backend  git@gitlab.acme.com:payroll/backend.git`, `frontend  …` (a local folder works too) |
 
 It then downloads the repositories, works out each one's language, framework and test commands, and
 saves your answers in `workspace.yaml`. **Approve the prompts** it shows for writing files under
@@ -127,7 +139,7 @@ left off. When you open Claude in the workspace, it reminds you of unfinished ti
 
 | Situation | Type |
 |---|---|
-| The pipeline failed | `/ai-workspace:ci PAY-123`: it reads the failure, fixes it if the change caused it (at most twice), and tells you otherwise |
+| The pipeline failed (GitHub Actions, GitLab CI, Jenkins, …) | `/ai-workspace:ci PAY-123`: it reads the failure, fixes it if the change caused it (at most twice), and tells you otherwise |
 | Reviewers left comments | `/ai-workspace:respond PAY-123`: it proposes a fix, an explanation or a question for each comment, and after your OK fixes the code and replies |
 | You want an overview | `/ai-workspace:status`: branch and changes for every repository |
 
@@ -152,6 +164,8 @@ All in `workspace.yaml` ([full reference](docs/configuration.md)):
 | I want to… | Setting |
 |---|---|
 | work on several tickets at the same time (e.g. one per terminal) | `worktrees: true` |
+| keep everything on my machine, never push | `git_host: { type: none }` |
+| use our Jenkins for `/ai-workspace:ci` | `ci: { provider: jenkins, url: https://jenkins.yourcompany.com }` and `ci_job:` per repository |
 | always approve the plan, even for small fixes | `gates: { quick_fix: both }` |
 | stop being asked to confirm every push and MR | `guard: { confirm_outward: false }` (destructive commands stay blocked) |
 | open MRs as drafts | `git_host: { draft: true }` |

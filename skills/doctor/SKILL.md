@@ -6,11 +6,12 @@ allowed-tools: Read, Bash(python3 */doctor.py*)
 
 # ai-workspace doctor
 
-1. Read `workspace.yaml` (if present) for `tracker.type`, `tracker.via`, `git_host.type` and the codebase names.
+1. Read `workspace.yaml` (if present) for `tracker.type`, `tracker.via`, `git_host.type`, `git_host.url`,
+   `ci.provider` and the codebase names.
 2. Run:
 
    ```bash
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/doctor.py" --root . --tracker <type> --host <github|gitlab> --codebases <a,b,c>
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/doctor.py" --root . --tracker <type> --host <github|gitlab|other|none> [--host-url <git_host.url>] --ci <host|jenkins|custom|none> --codebases <a,b,c>
    ```
 
    Omit options you don't have. In single-repo mode pass the codebase as `<name>=.`. The script never

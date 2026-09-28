@@ -1,6 +1,6 @@
 {
   "name": "ai-workspace",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Multi-repo AI development workspace for any stack: clone codebases from one manifest, auto-detect each stack, and drive ticket-to-merge-request work across repositories with human approval gates.",
   "author": {
     "name": "Pawanpreet Singh",

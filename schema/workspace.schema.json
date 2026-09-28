@@ -188,8 +188,16 @@
         "type": {
           "enum": [
             "github",
-            "gitlab"
-          ]
+            "gitlab",
+            "other",
+            "none"
+          ],
+          "description": "github (incl. Enterprise) | gitlab (incl. self-hosted; MRs via glab or git push options) | other (push + link to open the PR) | none (local only, nothing is pushed)"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Web URL for self-hosted GitLab, GitHub Enterprise or other hosts, e.g. https://gitlab.example.com"
         },
         "default_branch": {
           "type": "string",
@@ -224,7 +232,7 @@
           },
           "url": {
             "type": "string",
-            "description": "clone URL (multi mode)"
+            "description": "clone URL, or a local folder (multi mode)"
           },
           "path": {
             "type": "string",
@@ -262,6 +270,10 @@
               },
               "additionalProperties": false
             }
+          },
+          "ci_job": {
+            "type": "string",
+            "description": "jenkins: job path, e.g. payroll/backend"
           }
         },
         "additionalProperties": false,
@@ -316,7 +328,39 @@
     },
     "ci": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "provider": {
+          "enum": [
+            "host",
+            "jenkins",
+            "custom",
+            "none"
+          ],
+          "default": "host",
+          "description": "host: GitHub Actions / GitLab CI; jenkins; custom (your script); none"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "jenkins: server URL"
+        },
+        "commands": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "custom: templates with {codebase} {branch} {sha} {build}",
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "log": {
+              "type": "string"
+            },
+            "rerun": {
+              "type": "string"
+            }
+          }
+        },
         "max_rounds": {
           "type": "integer",
           "minimum": 0,
@@ -324,7 +368,42 @@
           "default": 2
         }
       },
-      "additionalProperties": false
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "provider": {
+                "const": "jenkins"
+              }
+            },
+            "required": [
+              "provider"
+            ]
+          },
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provider": {
+                "const": "custom"
+              }
+            },
+            "required": [
+              "provider"
+            ]
+          },
+          "then": {
+            "required": [
+              "commands"
+            ]
+          }
+        }
+      ]
     },
     "guard": {
       "type": "object",

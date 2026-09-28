@@ -4,6 +4,27 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-28
+
+### Added
+- **Local only** (`git_host.type: none`): nothing is pushed; the last approval offers *keep the branch*
+  or *merge into my local base branch* (fast-forward). Repositories without a remote work, including
+  worktrees; comparisons use the local base branch.
+- **Any git server**: `git_host.url` for self-hosted GitLab (e.g. `https://gitlab.yourcompany.com`) and
+  GitHub Enterprise; `type: other` for Bitbucket, Gitea, Azure DevOps and others (push, then a link to
+  open the PR). init detects the host from the clone URLs and asks GitHub / Other git server / Local only.
+- **No CLI required**: on GitLab, MRs open through `git push` options when `glab` isn't installed; on
+  GitHub without `gh`, you get the PR link. `gh`/`glab` now add automation instead of being required.
+- **CI providers** (`ci.provider`): `host` (GitHub Actions / GitLab CI), `jenkins` (multibranch or single
+  jobs, failed stages, console log tail, re-run; `JENKINS_USER`/`JENKINS_TOKEN`), `custom` (your script for
+  status/log/rerun), `none`. New `scripts/ci.py`, tested against a mock Jenkins.
+- init asks what runs your pipelines; `doctor` checks Jenkins credentials, self-hosted logins and
+  local-only repositories.
+
+### Changed
+- Missing `gh`/`glab` is a warning with the fallback explained, not a failure.
+- The guard asks before CI re-runs through `ci.py`.
+
 ## [1.0.1] - 2026-09-28
 
 ### Fixed

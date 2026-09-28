@@ -7,7 +7,10 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(pytho
 
 # ai-workspace respond
 
-Input: `$ARGUMENTS` (ticket key). Read `tasks/<folder-key>/state.md` (MR/PR URLs under `mrs:`, task
+Input: `$ARGUMENTS` (ticket key). Needs `gh` (GitHub, including Enterprise) or `glab` (GitLab, including
+self-hosted), logged in to the workspace's host. With `git_host.type: other`, or GitLab without `glab`,
+say this step has to be done by hand on the host's website and stop. With `git_host.type: none` (local
+only) there are no MRs and no review comments; say so and stop. Read `tasks/<folder-key>/state.md` (MR/PR URLs under `mrs:`, task
 checkouts `<repo>` under `checkouts:`, base branches under `bases:`; see `${CLAUDE_PLUGIN_ROOT}/skills/task/references/layout.md`),
 `requirement.md` and `plan.md`.
 

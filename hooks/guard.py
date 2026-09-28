@@ -334,6 +334,8 @@ def analyse(cmd: str, cwd: Path, protected: list[str], confirm: bool) -> None:
 
         if prog.startswith("python") and any(w.endswith("review_threads.py") for w in words) and "reply" in words:
             outward.append("MR/PR review reply")
+        if prog.startswith("python") and any(w.endswith("ci.py") for w in words) and "rerun" in words:
+            outward.append("CI re-run")
 
         if prog.startswith("python") and any(w.endswith("tracker.py") for w in words):
             ops = [w for w in words if w in ("comment", "transition")]

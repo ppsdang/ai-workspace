@@ -91,6 +91,7 @@ class GuardTest(unittest.TestCase):
             "bash -c 'cd codebase/api && git push'",
             "(git -C codebase/web push origin main)",
             "git -C codebase/web push origin prod",
+            "git -C codebase/web push -o merge_request.create origin main",
         ])
 
     def test_merges_denied(self):
@@ -101,6 +102,8 @@ class GuardTest(unittest.TestCase):
             "git -C codebase/web push -u origin feature/x",
             "cd codebase/web && gh pr create --base main --head feature/x --title t --body-file b.md",
             "glab mr create --source-branch feature/x --target-branch main --yes",
+            "git -C codebase/web push -u origin feature/x -o merge_request.create -o merge_request.target=main "
+            "-o merge_request.title=\"T-1: fix\"",
             "python3 /p/scripts/tracker.py --type jira --base-url https://x fetch A-1 && "
             "python3 /p/scripts/tracker.py --type jira --base-url https://x comment A-1",
             "python3 /p/scripts/tracker.py --type trello transition AbC Review",
@@ -116,6 +119,7 @@ class GuardTest(unittest.TestCase):
             "python3 /p/scripts/review_threads.py reply https://github.com/o/r/pull/1 T_abc",
             "( cd codebase/web && gh run rerun 123 --failed )",
             "glab ci retry 456",
+            "python3 /p/scripts/ci.py --provider jenkins --url https://j rerun --job a/b --branch x",
         ])
         self.assertDecision("none", [
             "gh api repos/o/r/pulls/1",
@@ -126,6 +130,8 @@ class GuardTest(unittest.TestCase):
             "python3 /p/scripts/review_threads.py checks https://github.com/o/r/pull/1",
             "( cd codebase/web && gh run view --job 9 --log-failed ) | tail -150",
             "glab ci trace 456",
+            "python3 /p/scripts/ci.py --provider jenkins --url https://j status --job a/b --branch x",
+            "git -C codebase/web merge --ff-only feature/x",
         ])
 
     def test_markdown_tracker_and_fetch_are_not_outward(self):
