@@ -4,12 +4,7 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
-### Fixed
-- Custom tracker commands keep backslashes in Windows paths (`C:\tools\tracker.exe`).
-- `worktree.sh`: clearer unpushed-branch check (shellcheck SC2015).
-- Demo test accepts Git Bash style paths on Windows.
-
-## [1.0.0] - 2026-09-27
+## [1.0.0] - 2026-09-28
 
 First public release.
 
@@ -29,7 +24,12 @@ First public release.
 - GitHub transitions swap status labels; Jira passes `--project` and optional `--acceptance-field`.
 - `/ci` and `/respond` stop on secrets findings instead of rewriting pushed history.
 - `doctor` understands monorepo component profiles and single-repo settings.
-- `docs/PLAN.md` replaced by `docs/roadmap.md`.
+- `docs/PLAN.md` replaced by `docs/roadmap.md`; README rewritten as a user guide.
+
+### Fixed
+- Custom tracker commands keep backslashes in Windows paths (`C:\tools\tracker.exe`).
+- `worktree.sh`: clearer unpushed-branch check (shellcheck SC2015).
+- Demo test accepts Git Bash style paths on Windows.
 
 ## [0.5.0] - 2026-09-27
 
