@@ -1,0 +1,22 @@
+{
+  "name": "ai-workspace",
+  "version": "1.0.0",
+  "description": "Multi-repo AI development workspace for any stack: clone codebases from one manifest, auto-detect each stack, and drive ticket-to-merge-request work across repositories with human approval gates.",
+  "author": {
+    "name": "Pawanpreet Singh",
+    "url": "https://github.com/ppsdang"
+  },
+  "homepage": "https://github.com/ppsdang/ai-workspace",
+  "repository": "https://github.com/ppsdang/ai-workspace",
+  "license": "MIT",
+  "keywords": [
+    "workspace",
+    "multi-repo",
+    "polyrepo",
+    "jira",
+    "gitlab",
+    "github",
+    "workflow",
+    "language-agnostic"
+  ]
+}

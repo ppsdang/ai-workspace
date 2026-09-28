@@ -1,0 +1,16 @@
+{
+  "name": "ai-workspace",
+  "description": "Marketplace for the ai-workspace plugin.",
+  "owner": {
+    "name": "Pawanpreet Singh",
+    "url": "https://github.com/ppsdang"
+  },
+  "plugins": [
+    {
+      "name": "ai-workspace",
+      "source": "./",
+      "description": "Multi-repo AI development workspace: one manifest, auto stack detection, ticket-to-MR across repositories.",
+      "category": "development"
+    }
+  ]
+}

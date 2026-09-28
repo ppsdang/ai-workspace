@@ -1,0 +1,49 @@
+name: Bug report
+description: Something in ai-workspace doesn't work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problems (for example a way around the guard hook) go through
+        **Security → Report a vulnerability** instead of a public issue.
+        Please remove tokens, internal URLs and company names from anything you paste.
+  - type: input
+    id: version
+    attributes:
+      label: ai-workspace version
+      description: From `.claude-plugin/plugin.json` or `/plugin`.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: cc
+    attributes:
+      label: Claude Code version and OS
+      placeholder: "claude --version; macOS 15 / Ubuntu 24.04 / Windows 11 (Git Bash)"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [init, task flow, ci, respond, status/doctor, guard hook, tracker adapter, worktrees, single-repo/monorepo, docs, other]
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: workspace.yaml (redacted)
+      render: yaml
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Include the command you ran and the relevant output (trim long logs).
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: If possible, reproduce with the demo (`examples/demo/setup.sh`).

@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ppsdang/ai-workspace/schema/workspace.schema.json",
+  "title": "ai-workspace manifest (workspace.yaml)",
+  "type": "object",
+  "required": [
+    "version",
+    "codebases"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "mode": {
+      "enum": [
+        "multi",
+        "single"
+      ],
+      "default": "multi",
+      "description": "multi: codebases cloned into codebase/<name>. single: this repository is the only codebase."
+    },
+    "worktrees": {
+      "type": "boolean",
+      "default": false,
+      "description": "Give each task its own checkout under work/<KEY>/<name> so tasks can run in parallel."
+    },
+    "workspace": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tracker": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "jira",
+            "github",
+            "trello",
+            "markdown",
+            "custom",
+            "none"
+          ]
+        },
+        "via": {
+          "enum": [
+            "mcp",
+            "api",
+            "command"
+          ]
+        },
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "jira: site URL"
+        },
+        "project": {
+          "type": "string",
+          "description": "jira: project key"
+        },
+        "acceptance_field": {
+          "type": "string",
+          "description": "jira: custom field with acceptance criteria, e.g. customfield_10042"
+        },
+        "repo": {
+          "type": "string",
+          "pattern": "^[\\w.-]+/[\\w.-]+$",
+          "description": "github: owner/repo"
+        },
+        "path": {
+          "type": "string",
+          "description": "markdown: folder with task files, relative to the workspace root"
+        },
+        "mcp_server": {
+          "type": "string",
+          "description": "custom via mcp: connected MCP server name"
+        },
+        "commands": {
+          "type": "object",
+          "description": "custom via command: templates with {key} and {status}",
+          "properties": {
+            "fetch": {
+              "type": "string"
+            },
+            "comment": {
+              "type": "string"
+            },
+            "transition": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "statuses": {
+          "type": "object",
+          "description": "Tracker statuses used at plan approval (start) and after MRs open (review).",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "review": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "jira"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "base_url"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "github"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "repo"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "markdown"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "path"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "custom"
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "commands"
+                ]
+              },
+              {
+                "required": [
+                  "mcp_server"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "git_host": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "github",
+            "gitlab"
+          ]
+        },
+        "default_branch": {
+          "type": "string",
+          "default": "main"
+        },
+        "draft": {
+          "type": "boolean",
+          "default": false
+        },
+        "sync": {
+          "enum": [
+            "rebase",
+            "merge"
+          ],
+          "default": "rebase"
+        }
+      },
+      "additionalProperties": false
+    },
+    "codebases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]+$"
+          },
+          "url": {
+            "type": "string",
+            "description": "clone URL (multi mode)"
+          },
+          "path": {
+            "type": "string",
+            "description": "single mode only: \".\""
+          },
+          "branch": {
+            "type": "string",
+            "description": "base branch, overrides git_host.default_branch"
+          },
+          "tdd": {
+            "enum": [
+              "strict",
+              "when-tests-exist",
+              "off"
+            ],
+            "default": "when-tests-exist"
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "dir"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                },
+                "dir": {
+                  "type": "string",
+                  "pattern": "^(?!/)(?!.*\\.\\.)"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "path"
+            ]
+          }
+        ]
+      }
+    },
+    "branching": {
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "default": "{type}/{key}-{slug}"
+        }
+      },
+      "additionalProperties": false
+    },
+    "protected_branches": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "main",
+        "master",
+        "develop",
+        "release/*"
+      ]
+    },
+    "gates": {
+      "type": "object",
+      "properties": {
+        "quick_fix": {
+          "enum": [
+            "end",
+            "both"
+          ],
+          "default": "end"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ci": {
+      "type": "object",
+      "properties": {
+        "max_rounds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "guard": {
+      "type": "object",
+      "properties": {
+        "confirm_outward": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

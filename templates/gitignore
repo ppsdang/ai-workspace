@@ -1,0 +1,7 @@
+# ai-workspace: cloned repos keep their own git history
+/codebase/
+# per-task worktrees (worktrees: true)
+/work/
+# AI working artifacts (remove this line to share task history with the team)
+/tasks/
+.claude/settings.local.json

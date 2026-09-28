@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest an improvement, a tracker adapter or a rule template
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options: [workflow / skill behaviour, tracker adapter, git host, rule template for a stack, docs, other]
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Fits the project's principles
+      options:
+        - label: Keeps the core stack-agnostic (language specifics go in rule templates)
+        - label: Anything outward-facing stays behind a human approval
