@@ -91,6 +91,15 @@ class CursorDoctorTest(unittest.TestCase):
             self.assertIn("CLAUDE.md", out)
 
 
+class EmptyWorkspaceTest(unittest.TestCase):
+    def test_doctor_explains_missing_codebases(self):
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "workspace.yaml").write_text("version: 1\ncodebases: []\n")
+            out = subprocess.run([sys.executable, str(ROOT / "scripts" / "doctor.py"), "--root", d],
+                                 capture_output=True, text=True).stdout
+            self.assertRegex(out, r"WARN\s+codebases\s+none yet")
+
+
 class CursorManifestTest(unittest.TestCase):
     def test_manifests_and_hooks(self):
         plugin = json.loads((ROOT / ".cursor-plugin" / "plugin.json").read_text())

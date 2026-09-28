@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -107,6 +108,8 @@ def check_workspace(root: Path, codebases, tools=("claude-code",)):
         add("FAIL", "workspace.yaml", f"not found in {root}; run /ai-workspace:init")
         return
     add("OK", "workspace.yaml", "found")
+    if not codebases and re.search(r"^codebases:\s*\[\s*\]", manifest.read_text(encoding="utf-8"), re.M):
+        add("WARN", "codebases", "none yet: add them under codebases: in workspace.yaml, or run /ai-workspace:init again")
     for spec in codebases:
         name, _, path = spec.partition("=")
         repo = (root / os.path.expanduser(path)) if path else root / "codebase" / name

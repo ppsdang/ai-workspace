@@ -14,7 +14,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(pytho
 
 Input: `$ARGUMENTS`. Plugin files: `${CLAUDE_PLUGIN_ROOT}`. Skill references: `${CLAUDE_SKILL_DIR}/references/`.
 Run from the workspace root (the folder with `workspace.yaml`). If there is no `workspace.yaml`, stop and
-suggest `/ai-workspace:init`.
+suggest `/ai-workspace:init`. If `codebases` is empty, stop and say the workspace has no repositories
+yet: run `/ai-workspace:init` again to add them (earlier answers are kept).
 
 **Paths.** Read `${CLAUDE_SKILL_DIR}/references/layout.md` first. Below, `<clone>` is a codebase's main
 checkout, `<repo>` the task checkout where the branch lives (the same folder unless `worktrees: true`),

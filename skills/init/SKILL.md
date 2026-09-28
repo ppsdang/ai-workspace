@@ -33,6 +33,14 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   name, tracker (jira / github / trello / markdown / custom / none, plus that type's fields and the
   `statuses.start` / `statuses.review` names), git host (github / gitlab) and the codebases
   (name + clone URL, optional base branch). Show the file and get confirmation before writing it.
+- **Never throw answers away.** If the user can't name any repositories yet ("not sure", "later", "just
+  trying it"), don't stop. Offer, as the continuation of the repositories question:
+  **Add them later** (write `workspace.yaml` with `codebases: []` and everything answered so far) /
+  **Use a folder I already have on disk** (its path works as a `url`) / **Try the demo repositories**
+  (run `bash "${CLAUDE_PLUGIN_ROOT}/examples/demo/setup.sh" <folder>` elsewhere and point the user there).
+  The same applies if the user stops midway: save what was answered, with the file confirmation as usual.
+- **Re-running init** with an existing `workspace.yaml` keeps every answer in it and asks only for what
+  is missing or empty (for example `codebases`), then continues with the steps that were skipped.
 - **How to ask.** Questions are for people, not for config files:
   - Write options and their descriptions in plain words. Never show config values or jargon in them
     (no `tools: [...]`, `type: gitlab`, `custom`, "MCP", "adapter"); those belong only in `workspace.yaml`.
@@ -93,7 +101,8 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   Azure Pipelines, …) → `custom`, explain that a small script supplies `ci.commands.status/log/rerun`
   (see `${CLAUDE_PLUGIN_ROOT}/docs/configuration.md`); **None** → `none`.
 - Validate: `version: 1`; `mode` is multi or single (single: exactly one codebase with `path: "."`, no
-  `url` needed); codebase and component names unique and matching `^[A-Za-z0-9._-]+$`; in multi mode every
+  `url` needed); `codebases` may be empty (see below); codebase and component names unique and matching
+  `^[A-Za-z0-9._-]+$`; in multi mode every
   codebase has a `url`; component `dir`s exist after cloning and stay inside the repository; every name
   in `ci.shared_jobs[].codebases` is a codebase.
   `tracker.type` is one of jira, github, trello, markdown, custom, none, and has its required fields
@@ -107,6 +116,10 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   (`gh auth status --hostname <host>` / `glab auth status --hostname <host>`). If `glab` is missing, say
   that MRs can still be opened through git push options, and that `glab` adds descriptions, CI and review
   follow-up (`brew install glab`, then `glab auth login --hostname <host>`). Warnings only.
+
+**No codebases yet:** skip steps 2–5, do step 6 (workspace files, settings, folders), and in the
+summary say exactly how to continue: add each repository under `codebases:` in `workspace.yaml` (with an
+example line) or run `/ai-workspace:init` again and give them then; nothing else will be asked again.
 
 ## 2. Clone
 

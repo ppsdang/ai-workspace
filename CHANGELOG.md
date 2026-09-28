@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-09-28
+
+### Changed
+- `init` no longer stops, and loses the answers, when you don't have repository URLs yet. It offers to
+  add them later (saving `workspace.yaml` with an empty `codebases` list), to use a folder already on
+  disk, or to try the demo repositories. Re-running `init` keeps every earlier answer and asks only
+  for what's missing. `/ai-workspace:task` and `doctor` say clearly when a workspace has no
+  repositories yet.
+
 ## [1.5.1] - 2026-09-28
 
 ### Changed
