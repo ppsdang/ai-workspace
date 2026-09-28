@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+### Fixed
+- Custom tracker commands keep backslashes in Windows paths (`C:\tools\tracker.exe`).
+- `worktree.sh`: clearer unpushed-branch check (shellcheck SC2015).
+- Demo test accepts Git Bash style paths on Windows.
+
 ## [1.0.0] - 2026-09-27
 
 First public release.

@@ -44,9 +44,10 @@ case "$op" in
       ahead="$(git -C "$dest" rev-list --count "$upstream..HEAD")"
       [[ "$ahead" == 0 ]] || die "$branch has $ahead unpushed commit(s); not removing"
     else
-      git -C "$dest" fetch --quiet origin "$branch" 2>/dev/null \
-        && [[ -z "$(git -C "$dest" rev-list "origin/$branch..HEAD" 2>/dev/null)" ]] \
-        || die "$branch is not pushed; not removing"
+      if ! git -C "$dest" fetch --quiet origin "$branch" 2>/dev/null \
+         || [[ -n "$(git -C "$dest" rev-list "origin/$branch..HEAD" 2>/dev/null)" ]]; then
+        die "$branch is not pushed; not removing"
+      fi
     fi
     git -C "$clone" worktree remove "$dest" || die "worktree remove failed"
     git -C "$clone" worktree prune

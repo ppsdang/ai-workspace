@@ -418,6 +418,15 @@ class Markdown:
 
 # --- custom ---------------------------------------------------------------------------------
 
+def split_command(template: str) -> list[str]:
+    """Split a command template into argv. POSIX rules, except on Windows, where backslashes are path
+    separators (C:\\tools\\tracker.exe) and must survive; there only quotes group words."""
+    if os.name != "nt":
+        return shlex.split(template)
+    parts = shlex.split(template, posix=False)
+    return [p[1:-1] if len(p) >= 2 and p[0] == p[-1] and p[0] in "\"'" else p for p in parts]
+
+
 class Custom:
     """Delegates to user-supplied commands, e.g. a script that calls an in-house tracker's API.
 
@@ -434,7 +443,7 @@ class Custom:
         if not tpl:
             raise TrackerError(f"custom tracker has no --{op}-cmd configured")
         argv = []
-        for part in shlex.split(tpl):
+        for part in split_command(tpl):
             for name, value in values.items():
                 part = part.replace("{" + name + "}", value)
             argv.append(part)

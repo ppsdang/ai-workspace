@@ -25,7 +25,8 @@ class DemoTest(unittest.TestCase):
                                      capture_output=True, text=True)
                 self.assertIn("Initial commit", log.stdout)
             manifest = (target / "shop-workspace" / "workspace.yaml").read_text()
-            self.assertIn(str(target.resolve() / "remotes" / "api.git"), manifest)
+            url = next(line.split("url:", 1)[1].strip() for line in manifest.splitlines() if "url:" in line)
+            self.assertTrue(url.endswith("remotes/api.git"), url)  # Git Bash on Windows writes /c/... paths
             self.assertTrue((target / "shop-workspace" / "backlog" / "task2.md").is_file())
             again = subprocess.run([BASH, str(ROOT / "examples/demo/setup.sh"), str(target)], capture_output=True, text=True)
             self.assertEqual(again.returncode, 1, "must refuse to overwrite")
