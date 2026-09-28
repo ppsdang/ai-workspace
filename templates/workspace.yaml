@@ -52,8 +52,8 @@ codebases:
   # - name: platform
   #   url: git@gitlab.com:example/platform.git
   #   components:
-  #     - { name: api, dir: services/api }
-  #     - { name: web, dir: apps/web }
+  #     - { name: api, dir: services/api, ci_job: platform/api }   # ci_job: optional Jenkins job per component
+  #     - { name: web, dir: apps/web, ci_job: platform/web }
   #
   # Single-repo mode (mode: single): exactly one codebase, no url
   # - name: shop

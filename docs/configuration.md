@@ -62,8 +62,10 @@ comments[]`) or plain markdown. See [trackers.md](../skills/task/references/trac
 | `max_rounds` | int | `2` | CI-fix pushes per task before `/ai-workspace:ci` hands over to a human |
 
 For Jenkins, each codebase names its job with `ci_job` (the path shown in Jenkins, e.g.
-`payroll/backend`). Multibranch pipelines and single jobs are both supported: builds are matched to the
-branch and commit.
+`payroll/backend`). In a monorepo, each component can have its own `ci_job`; `/ai-workspace:ci` then checks
+only the jobs of the components the task changed, and falls back to the codebase's `ci_job` for components
+without one. Multibranch pipelines and single jobs are both supported: builds are matched to the branch
+and commit.
 
 ## `codebases[]`
 
@@ -75,7 +77,7 @@ branch and commit.
 | `path` | Single mode only: `"."` (the repository itself) |
 | `branch` | Base branch for this codebase |
 | `tdd` | `strict` \| `when-tests-exist` (default) \| `off` |
-| `components` | Monorepo parts: `[{name, dir}]`. Each gets its own profile, rules, analysis and tests; branches and MRs stay per codebase |
+| `components` | Monorepo parts: `[{name, dir, ci_job}]` (`ci_job` optional). Each gets its own profile, rules, analysis, tests and CI job; branches and MRs stay per codebase |
 
 ## Examples
 
@@ -153,4 +155,19 @@ ci: { provider: jenkins, url: https://jenkins.example.com }
 codebases:
   - { name: backend, url: git@gitlab.example.com:payroll/backend.git, ci_job: payroll/backend }
   - { name: frontend, url: git@gitlab.example.com:payroll/frontend.git, ci_job: payroll/frontend }
+```
+
+**Monorepo with a Jenkins job per component:**
+
+```yaml
+version: 1
+git_host: { type: gitlab, url: https://gitlab.example.com }
+ci: { provider: jenkins, url: https://jenkins.example.com }
+codebases:
+  - name: platform
+    url: git@gitlab.example.com:acme/platform.git
+    components:
+      - { name: api, dir: services/api, ci_job: platform/api }
+      - { name: web, dir: apps/web, ci_job: platform/web }
+      - { name: shared, dir: packages/shared }        # no own job: covered by the others
 ```

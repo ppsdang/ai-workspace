@@ -17,7 +17,7 @@ say the task hasn't shipped and stop.
 | `ci.provider` | Status and logs via | Needs |
 |---|---|---|
 | `host` (default) | the git host: GitHub Actions / GitLab CI | `gh` or `glab` logged in to the host. Not possible with `git_host.type: other` or without the CLI: say so and stop |
-| `jenkins` | `scripts/ci.py --provider jenkins --url <ci.url>`, job = the codebase's `ci_job` | `JENKINS_USER`, `JENKINS_TOKEN` |
+| `jenkins` | `scripts/ci.py --provider jenkins --url <ci.url>`, job = the component's or codebase's `ci_job` (see below) | `JENKINS_USER`, `JENKINS_TOKEN` |
 | `custom` | `scripts/ci.py --provider custom` with `ci.commands.status/log/rerun` | whatever the team's script needs |
 | `none` | nothing to watch: say tests already ran locally in the task, and stop | |
 
@@ -28,7 +28,16 @@ Limits from `workspace.yaml` → `ci.max_rounds` (default **2**): a round is one
 
 ## 1. Get the status
 
-For each affected codebase, with `<sha>` = `git -C <repo> rev-parse HEAD`:
+**What to check.** One check per *CI unit*:
+- a codebase without components → the codebase (its `ci_job`);
+- a monorepo whose components have their own `ci_job` → **each affected component** listed under
+  `components:` in `state.md`, with the component's `ci_job`. Unaffected components are skipped: their
+  jobs often only run when their folder changes, so "no build" there is expected, not a problem.
+- a component without `ci_job` falls back to its codebase's `ci_job`; if several affected components
+  share one job, check that job once.
+
+All CI units of one codebase build the same branch and commit, so `<branch>` and `<sha>` are the same
+for them. For each CI unit, with `<sha>` = `git -C <repo> rev-parse HEAD`:
 
 ```bash
 # host
@@ -41,8 +50,10 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ci.py" --provider custom --status-cmd "<c
 ```
 
 All three print the same summary: `state` (`passed | failed | pending | none`), `failed[]` (name, id,
-url; Jenkins adds `failed_stages`), `pending[]`. For Jenkins, a codebase without `ci_job` can't be looked
-up: ask the user for the job path (e.g. `payroll/backend`) and suggest adding `ci_job:` to `workspace.yaml`.
+url; Jenkins adds `failed_stages`), `pending[]`. For Jenkins, a CI unit without any `ci_job` (neither the
+component nor its codebase) can't be looked up: ask the user for the job path (e.g. `payroll/backend` or
+`platform/api`) and suggest adding `ci_job:` to `workspace.yaml`. Report results per CI unit, and when a
+component's job fails, fix only within that component unless the log shows the cause elsewhere.
 
 - **pending**: wait without blocking the conversation. Start this with the Bash tool's
   `run_in_background` option and continue when it finishes (up to ~20 minutes):

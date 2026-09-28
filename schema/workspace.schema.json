@@ -266,6 +266,10 @@
                 "dir": {
                   "type": "string",
                   "pattern": "^(?!/)(?!.*\\.\\.)"
+                },
+                "ci_job": {
+                  "type": "string",
+                  "description": "jenkins: job path for this component, e.g. platform/api"
                 }
               },
               "additionalProperties": false

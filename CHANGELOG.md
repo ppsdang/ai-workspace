@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-28
+
+### Added
+- Monorepos with a CI job per component: `ci_job` on each component. `/ai-workspace:ci` checks only the
+  jobs of the components the task changed (unaffected components' jobs often don't run), falls back to
+  the codebase's `ci_job`, checks a shared job once, and keeps fixes within the failing component.
+  init asks for per-component jobs when it detects a monorepo with Jenkins.
+
 ## [1.1.0] - 2026-09-28
 
 ### Added

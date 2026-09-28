@@ -49,6 +49,9 @@ class SchemaTest(unittest.TestCase):
         template = (ROOT / "templates/workspace.yaml").read_text()
         keys = set(re.findall(r"^([a-z_]+):", template, re.M))
         self.assertLessEqual(keys, top, f"template keys missing from schema: {keys - top}")
+        codebase = schema["properties"]["codebases"]["items"]["properties"]
+        self.assertIn("ci_job", codebase)
+        self.assertIn("ci_job", codebase["components"]["items"]["properties"])
 
 
 if __name__ == "__main__":

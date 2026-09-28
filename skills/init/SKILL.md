@@ -52,7 +52,9 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   If the codebases live on different hosts, say that one `git_host` applies to all and ask which to use.
 - **Asking for CI** (skip for local only, which implies `ci.provider: none`): *What runs your pipelines?*
   **Same as the git host** (GitHub Actions / GitLab CI) → `host`; **Jenkins** → `jenkins`, ask for its URL
-  (`ci.url`) and each codebase's job path (`ci_job`, e.g. `payroll/backend`); **Other** (TeamCity, Bamboo,
+  (`ci.url`) and each codebase's job path (`ci_job`, e.g. `payroll/backend`). For a monorepo, ask whether
+  each component has its own job; if so, record `ci_job` on each component (e.g. `platform/api`) and keep
+  the codebase's `ci_job` only for a shared job, if there is one; **Other** (TeamCity, Bamboo,
   Azure Pipelines, …) → `custom`, explain that a small script supplies `ci.commands.status/log/rerun`
   (see `${CLAUDE_PLUGIN_ROOT}/docs/configuration.md`); **None** → `none`.
 - Validate: `version: 1`; `mode` is multi or single (single: exactly one codebase with `path: "."`, no

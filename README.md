@@ -170,7 +170,7 @@ All in `workspace.yaml` ([full reference](docs/configuration.md)):
 | stop being asked to confirm every push and MR | `guard: { confirm_outward: false }` (destructive commands stay blocked) |
 | open MRs as drafts | `git_host: { draft: true }` |
 | skip test-first for a repository without tests | `tdd: off` on that codebase |
-| treat parts of one big repository separately (monorepo) | `components:` on that codebase |
+| treat parts of one big repository separately (monorepo) | `components:` on that codebase, optionally with a Jenkins `ci_job` per component |
 | add a repository later | add it to `codebases:` and run `/ai-workspace:init` again |
 
 ## 7. Questions
