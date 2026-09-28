@@ -2,7 +2,7 @@
 """Check that a machine and workspace are ready for ai-workspace.
 
   doctor.py [--root DIR] [--tracker TYPE] [--host github|gitlab|other|none] [--host-url URL]
-            [--ci host|jenkins|custom|none] [--codebases a,b=path,c]
+            [--ci host|jenkins|custom|none] [--tools claude-code,cursor] [--codebases a,b=path,c]
 
   A codebase is `name` (cloned at codebase/<name>) or `name=path` (e.g. `shop=.` in single-repo mode).
 
@@ -101,7 +101,7 @@ def check_tracker(tracker):
         add("INFO", f"tracker {tracker}", "if it uses an MCP server, check it is connected with /mcp")
 
 
-def check_workspace(root: Path, codebases):
+def check_workspace(root: Path, codebases, tools=("claude-code",)):
     manifest = root / "workspace.yaml"
     if not manifest.is_file():
         add("FAIL", "workspace.yaml", f"not found in {root}; run /ai-workspace:init")
@@ -123,9 +123,14 @@ def check_workspace(root: Path, codebases):
         if not (profiles / f"{name}.md").is_file() and not any(profiles.glob(f"{name}--*.md")):
             add("WARN", f"profile {name}", "missing; re-run /ai-workspace:init")
     single = any(spec.partition("=")[2] == "." for spec in codebases)
-    for f in ((".claude/settings.local.json",) if single else (".claude/settings.json", "CLAUDE.md")):
+    expected = []
+    if "claude-code" in tools:
+        expected += [".claude/settings.local.json"] if single else [".claude/settings.json", "CLAUDE.md"]
+    if "cursor" in tools:
+        expected += [".cursor/rules/ai-workspace.mdc"] if single else ["AGENTS.md"]
+    for f in expected:
         if not (root / f).is_file():
-            add("WARN", f, "missing; re-run /ai-workspace:init and approve writes under .claude/")
+            add("WARN", f, "missing; re-run /ai-workspace:init (and approve its file writes)")
 
 
 def main(argv=None) -> int:
@@ -136,12 +141,14 @@ def main(argv=None) -> int:
     p.add_argument("--ci", choices=["host", "jenkins", "custom", "none"])
     p.add_argument("--host-url", help="self-hosted / enterprise web URL, e.g. https://gitlab.example.com")
     p.add_argument("--codebases", default="")
+    p.add_argument("--tools", default="claude-code", help="comma-separated: claude-code, cursor")
     a = p.parse_args(argv)
     hostname = urllib.parse.urlsplit(a.host_url).hostname if a.host_url else None
     check_tools(a.host, hostname)
     check_ci(a.ci)
     check_tracker(a.tracker)
-    check_workspace(Path(a.root).resolve(), [c for c in a.codebases.split(",") if c])
+    check_workspace(Path(a.root).resolve(), [c for c in a.codebases.split(",") if c],
+                    tuple(t.strip() for t in a.tools.split(",") if t.strip()))
     width = max(len(c) for _, c, _ in results)
     for status, check, detail in results:
         print(f"{status:<5} {check:<{width}}  {detail}")

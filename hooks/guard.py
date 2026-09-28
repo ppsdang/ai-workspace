@@ -11,6 +11,10 @@ Decisions (returned as hook JSON on stdout, exit code 0):
 This guards against honest mistakes and prompt-injected shortcuts. It is not a sandbox: a
 determined process with shell access can always find another way. See SECURITY.md.
 
+Works as a Claude Code PreToolUse hook (default) and as a Cursor beforeShellExecution hook
+(`--format cursor`, or detected from Cursor's input shape). In Cursor mode a decision is always
+printed, "allow" included, because Cursor treats a missing or malformed reply as a block.
+
 Configuration (workspace.yaml, optional):
   protected_branches: [main, master, "release/*"]    # inline or block list
   guard:
@@ -55,12 +59,28 @@ class Decision(Exception):
         self.kind, self.reason = kind, reason
 
 
+FORMAT = "claude"  # or "cursor"; set in main()
+
+
 def emit(kind: str, reason: str) -> None:
+    message = f"ai-workspace guard: {reason}"
+    if FORMAT == "cursor":
+        out = {"permission": kind}
+        if kind != "allow":
+            out.update(user_message=message, agent_message=message)
+        print(json.dumps(out))
+        return
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": kind,
-        "permissionDecisionReason": f"ai-workspace guard: {reason}",
+        "permissionDecisionReason": message,
     }}))
+
+
+def emit_allow() -> None:
+    """No objection. Claude Code: say nothing (normal permission flow). Cursor: explicit allow."""
+    if FORMAT == "cursor":
+        emit("allow", "")
 
 
 # --- workspace config -----------------------------------------------------------------------
@@ -348,27 +368,39 @@ def analyse(cmd: str, cwd: Path, protected: list[str], confirm: bool) -> None:
 
 
 def main() -> int:
+    global FORMAT
+    if "--format" in sys.argv[1:]:
+        i = sys.argv.index("--format")
+        FORMAT = sys.argv[i + 1] if i + 1 < len(sys.argv) else "claude"
     raw = sys.stdin.read()
     try:
         data = json.loads(raw)
-        cmd = (data.get("tool_input") or {}).get("command") or ""
-        cwd = Path(data.get("cwd") or os.getcwd())
-    except (json.JSONDecodeError, AttributeError):
+        if "tool_input" not in data and isinstance(data.get("command"), str):
+            FORMAT = "cursor"  # Cursor beforeShellExecution: {"command", "cwd", ...}
+        cmd = data["command"] if FORMAT == "cursor" else (data.get("tool_input") or {}).get("command") or ""
+        cwd = Path(data.get("cwd") or os.environ.get("CURSOR_PROJECT_DIR") or os.getcwd())
+    except (json.JSONDecodeError, AttributeError, KeyError, TypeError):
         if re.search(r"\bpush\b|\bgh\b|\bglab\b", raw):
             emit("ask", "could not read the hook input; confirm this command manually")
+        else:
+            emit_allow()
         return 0
     if not cmd:
+        emit_allow()
         return 0
     if not cwd.is_absolute():
         cwd = Path(os.getcwd()) / cwd
     try:
         protected, confirm = read_config(find_workspace(cwd.resolve()))
         analyse(cmd, cwd.resolve(), protected, confirm)
+        emit_allow()
     except Decision as d:
         emit(d.kind, d.reason)
     except Exception as e:  # never crash into "allow" silently on push-like commands
         if re.search(r"\bpush\b", cmd):
             emit("ask", f"guard error ({type(e).__name__}); confirm this command manually")
+        else:
+            emit_allow()
     return 0
 
 

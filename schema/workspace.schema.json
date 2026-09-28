@@ -25,6 +25,20 @@
       "default": false,
       "description": "Give each task its own checkout under work/<KEY>/<name> so tasks can run in parallel."
     },
+    "tools": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "claude-code",
+          "cursor"
+        ]
+      },
+      "uniqueItems": true,
+      "default": [
+        "claude-code"
+      ],
+      "description": "AI tools the team uses; decides which instruction and rule files init writes"
+    },
     "workspace": {
       "type": "object",
       "properties": {

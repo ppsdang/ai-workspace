@@ -15,7 +15,7 @@ GitHub Actions, GitLab CI, Jenkins or your own CI, or entirely on your machine w
 
 ## 1. Install
 
-You need [Claude Code](https://claude.com/claude-code), `git` and `python3` (3.10 or newer). That's
+You need [Claude Code](https://claude.com/claude-code) (or [Cursor](#using-cursor-instead-beta)), `git` and `python3` (3.10 or newer). That's
 enough for everything, local only or with pushing. Extra tools only add automation (see
 [Choose your setup](#choose-your-setup)).
 
@@ -39,6 +39,31 @@ Every outside service is optional. Pick one line per row; `/ai-workspace:init` a
 | **Code** | **Local only**: nothing is pushed; keep the branch or merge it into your local `main`. **Or push with plain `git`**: on GitLab (including self-hosted) the MR opens automatically from the push; on GitHub and other hosts you get a link to open the PR | [`gh`](https://cli.github.com) (GitHub, Enterprise: `gh auth login --hostname …`) or [`glab`](https://gitlab.com/gitlab-org/cli) (GitLab, self-hosted: `glab auth login --hostname gitlab.yourcompany.com`) add full MR descriptions, linked MRs and review-comment handling |
 | **Pipelines** | **None**: tests always run on your machine during a task | GitHub Actions / GitLab CI (through `gh`/`glab`), **Jenkins** (`JENKINS_USER` + `JENKINS_TOKEN`), or any other CI through a small script |
 | **Tasks** | Describe the task in the command, or use markdown task files | Jira, GitHub Issues, Trello, or your own tracker (see [section 5](#5-connect-your-tracker)) |
+
+### Using Cursor instead (beta)
+
+The same plugin works in [Cursor](https://cursor.com) (2.5 or newer, which has plugins, skills,
+subagents and hooks). Install it one of these ways:
+
+- **On your machine:** `git clone https://github.com/ppsdang/ai-workspace ~/.cursor/plugins/local/ai-workspace`,
+  then restart Cursor and check that *ai-workspace* appears under **Customize**. Update with `git pull` in that folder.
+- **For a team** (Cursor Teams/Enterprise): Dashboard → **Plugins & MCPs** → **Add Marketplace** →
+  **Import from Repo**, paste `https://github.com/ppsdang/ai-workspace`, and turn on auto refresh.
+
+The commands are the same (`/ai-workspace:init`, `/ai-workspace:task`, …; in Cursor they appear in the
+slash menu as skills). When `init` asks which AI tools your team uses, pick **Cursor** or **Both**: it then
+writes `AGENTS.md` and `.cursor/rules/`, so Claude Code and Cursor users can share one workspace.
+
+Differences in Cursor, while support is in beta:
+
+- The safety guard runs as a Cursor hook. After installing, open **Customize → Hooks** (or the *Hooks*
+  output channel) and check that `beforeShellExecution` and `sessionStart` from ai-workspace are active,
+  and please [report it](https://github.com/ppsdang/ai-workspace/issues) if they aren't.
+- Questions come as numbered choices in the chat instead of Claude Code's selection prompts.
+- The subagents' limits (the analyst being read-only, turn limits) may not be enforced by Cursor; the
+  instructions still say so, and the guard still blocks destructive commands.
+- Claude Code's permission settings (`.claude/settings.json`) don't apply; use Cursor's own settings.
+- `claude plugin eval` is Claude Code only.
 
 ## 2. Try it first (optional, 5 minutes)
 

@@ -7,6 +7,11 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion, Bash(bash 
 
 # ai-workspace init
 
+> **Paths and tools.** `${CLAUDE_PLUGIN_ROOT}` is this plugin's folder and `${CLAUDE_SKILL_DIR}` the folder
+> of this file. If they appear literally (not replaced, e.g. in Cursor), use `$AI_WORKSPACE_PLUGIN_ROOT`
+> when it is set, otherwise the folder two levels above this file; for `${CLAUDE_SKILL_DIR}`, this file's
+> folder. If there is no AskUserQuestion tool, ask in plain text with numbered options and wait for the answer.
+
 Arguments: `$ARGUMENTS` — optional codebase names to limit a refresh to. Empty means all codebases.
 
 Plugin files: `${CLAUDE_PLUGIN_ROOT}` (templates in `templates/`, scripts in `scripts/`).
@@ -50,6 +55,9 @@ that still has the marker.** If a file exists without it, the user owns it: leav
   3. **Nowhere, local only** → `type: none`: nothing is ever pushed; finished work stays on a local branch
      or is merged locally.
   If the codebases live on different hosts, say that one `git_host` applies to all and ask which to use.
+- **Asking which AI tools the team uses**: *Claude Code* / *Cursor* / *Both* → `tools: [claude-code]`,
+  `[cursor]` or `[claude-code, cursor]` (default `[claude-code]`). This decides which instruction and rule
+  files are written in steps 5 and 6, so people using either tool get the same guidance in one workspace.
 - **Asking for CI** (skip for local only, which implies `ci.provider: none`): *What runs your pipelines?*
   **Same as the git host** (GitHub Actions / GitLab CI) → `host`; **Jenkins** → `jenkins`, ask for its URL
   (`ci.url`), then work out the job names with as few questions as possible:
@@ -143,6 +151,20 @@ Replace `{{PATHS}}` with a YAML list (one `  - "glob"` per line), `{{NAME}}` wit
 Insert the marker line right after the frontmatter. For a stack with no template, skip it and mention it
 in the summary as a candidate template to contribute.
 
+Write the rules for each tool in `tools`:
+- **claude-code**: `.claude/rules/<file>.md` as above (`paths:` frontmatter).
+- **cursor**: the same rule as `.cursor/rules/<file>.mdc`, with Cursor's frontmatter instead of `paths:`:
+
+  ```markdown
+  ---
+  description: <the rule's first heading, e.g. "Python rules for codebase api">
+  globs: ["codebase/api/**/*.py", "work/*/api/**/*.py"]
+  alwaysApply: false
+  ---
+  ```
+
+  Same globs, same body, same marker line.
+
 ## 6. Workspace files
 
 - Workspace instructions from `templates/CLAUDE.md`. Placeholders: `{{WORKSPACE_NAME}}`, `{{TRACKER}}`
@@ -150,16 +172,21 @@ in the summary as a candidate template to contribute.
   (units: name · path · stack · one-line purpose · profile link), and `{{WORKTREE_NOTE}}`: when
   `worktrees: true`, `; with worktrees enabled, a task's changes live in work/<KEY>/<name>` (single mode:
   `.ai-work/<KEY>`), else empty. Add the marker. Keep it short.
-  - multi mode: write it as `CLAUDE.md` in the workspace root.
-  - single mode: the repository may already have its own `CLAUDE.md`, so never touch it; write
-    `.claude/rules/ai-workspace.md` instead (no `paths:` frontmatter, so it always loads).
+  - multi mode, `tools` without cursor: write it as `CLAUDE.md` in the workspace root.
+  - multi mode, `tools` with cursor: write it as `AGENTS.md` (Cursor reads it automatically). If
+    claude-code is also in `tools`, write `CLAUDE.md` as just the marker line plus `@AGENTS.md`, so both
+    tools read one file.
+  - single mode: the repository may already have its own `CLAUDE.md` or `AGENTS.md`, so never touch
+    them. Write `.claude/rules/ai-workspace.md` (no `paths:` frontmatter, so it always loads) for
+    claude-code, and `.cursor/rules/ai-workspace.mdc` with `alwaysApply: true` for cursor.
 - Ignore files:
   - multi mode: ensure every line of `templates/gitignore` is in `.gitignore`; don't remove existing lines.
   - single mode: don't edit the team's `.gitignore`. Exclude the workspace files locally with
-    `bash "${CLAUDE_PLUGIN_ROOT}/scripts/exclude-local.sh" . /workspace.yaml /context/ /tasks/ /.ai-work/ <each generated .claude/rules file>`
+    `bash "${CLAUDE_PLUGIN_ROOT}/scripts/exclude-local.sh" . /workspace.yaml /context/ /tasks/ /.ai-work/ <each generated .claude/rules and .cursor/rules file>`
     (writes `.git/info/exclude`, idempotent). Mention that the team can commit them later if they want
     to share the setup.
-- Settings: in multi mode `.claude/settings.json`; in **single mode `.claude/settings.local.json`**
+- Settings (claude-code only; Cursor keeps its permissions in its own settings, and the guard hook
+  protects both): in multi mode `.claude/settings.json`; in **single mode `.claude/settings.local.json`**
   (the repository may commit `.claude/settings.json`, and single mode must not change tracked files).
   Merge (never replace) — add `"ai-workspace@ai-workspace": true` under
   `enabledPlugins` and the `permissions.allow` / `permissions.deny` entries from `templates/settings.json`

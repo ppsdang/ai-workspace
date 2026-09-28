@@ -4,6 +4,7 @@
 version: 1
 mode: multi                # multi: codebases cloned into codebase/<name> | single: this repository only
 worktrees: false           # true: each task gets its own checkout under work/<KEY>/<name> (parallel tasks)
+tools: [claude-code]       # claude-code | cursor | both: which instruction and rule files init writes
 
 workspace:
   name: Example Shop

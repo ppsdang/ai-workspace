@@ -4,6 +4,20 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-28
+
+### Added
+- **Cursor support (beta).** The repository is also a Cursor plugin (`.cursor-plugin/plugin.json`,
+  `.cursor-plugin/marketplace.json`) with the same skills and subagents:
+  - the guard and session hooks understand Cursor's `beforeShellExecution` / `sessionStart` formats
+    (`cursor/hooks.json`); in Cursor mode the guard always answers explicitly, `allow` included;
+  - the session hook sets `AI_WORKSPACE_PLUGIN_ROOT`, and every skill falls back to it (or to its own
+    location) when `${CLAUDE_PLUGIN_ROOT}` isn't replaced; questions fall back to numbered choices;
+  - `tools: [claude-code, cursor]` in `workspace.yaml`: init writes `AGENTS.md` (with `CLAUDE.md`
+    importing it) and `.cursor/rules/*.mdc` next to `.claude/rules/`, so both tools share one workspace;
+  - `doctor` checks the files for the tools in use.
+  Install via `~/.cursor/plugins/local/` or a Cursor team marketplace imported from the repo.
+
 ## [1.4.0] - 2026-09-28
 
 ### Added

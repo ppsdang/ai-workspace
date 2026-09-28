@@ -30,6 +30,10 @@ run `/ai-workspace:init` and `/ai-workspace:task <task-file>`.
 
 ## Guidelines
 
+- The repository is both a Claude Code plugin (`.claude-plugin/`) and a Cursor plugin (`.cursor-plugin/`,
+  hooks in `cursor/hooks.json`). Keep the version the same in both `plugin.json` files (a test checks it),
+  and keep hooks working for both input formats.
+
 - Keep the core stack-agnostic: no language-specific instructions in skills or agents.
 - Scripts use only the Python standard library, or bash plus git.
 - Anything outward-facing (push, MR/PR, tracker writes) must stay behind a human gate.

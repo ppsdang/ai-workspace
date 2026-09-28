@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "python3 \"${CURSOR_PLUGIN_ROOT}/hooks/guard.py\" --format cursor",
+        "timeout": 15
+      }
+    ],
+    "sessionStart": [
+      {
+        "command": "python3 \"${CURSOR_PLUGIN_ROOT}/hooks/session_start.py\" --format cursor",
+        "timeout": 10
+      }
+    ]
+  }
+}

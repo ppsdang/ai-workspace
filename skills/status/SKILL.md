@@ -6,6 +6,11 @@ allowed-tools: Bash(bash *status.sh*), Read
 
 # Workspace status
 
+> **Paths and tools.** `${CLAUDE_PLUGIN_ROOT}` is this plugin's folder and `${CLAUDE_SKILL_DIR}` the folder
+> of this file. If they appear literally (not replaced, e.g. in Cursor), use `$AI_WORKSPACE_PLUGIN_ROOT`
+> when it is set, otherwise the folder two levels above this file; for `${CLAUDE_SKILL_DIR}`, this file's
+> folder. If there is no AskUserQuestion tool, ask in plain text with numbered options and wait for the answer.
+
 Run from the workspace root (the directory containing `workspace.yaml`):
 
 ```bash

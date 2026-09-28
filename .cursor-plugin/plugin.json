@@ -17,6 +17,10 @@
     "gitlab",
     "github",
     "workflow",
-    "language-agnostic"
-  ]
+    "language-agnostic",
+    "cursor"
+  ],
+  "skills": "skills",
+  "agents": "agents",
+  "hooks": "cursor/hooks.json"
 }

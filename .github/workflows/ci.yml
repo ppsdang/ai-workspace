@@ -40,7 +40,7 @@ jobs:
         run: shellcheck scripts/*.sh
       - name: JSON manifests parse
         run: |
-          for f in .claude-plugin/*.json hooks/hooks.json templates/settings.json schema/*.json; do
+          for f in .claude-plugin/*.json .cursor-plugin/*.json hooks/hooks.json cursor/hooks.json templates/settings.json schema/*.json; do
             python3 -m json.tool "$f" > /dev/null || exit 1
           done
 
